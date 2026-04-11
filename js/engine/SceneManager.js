@@ -18,4 +18,4 @@ export default class SceneManager {
             this.currentScene.render(ctx);
         }
     }
-}   
+}

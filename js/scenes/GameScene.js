@@ -1,5 +1,5 @@
 import Enemy from "../core/Enemy.js";
-import Tower from "../core/Tower.js";
+import Tower, { TOWER_TYPES, getTowerCost, getTowerLabel } from "../core/Tower.js";
 import PlacementSystem from "../systems/PlacementSystem.js";
 import level1 from "../levels/level1.js";
 
@@ -18,16 +18,43 @@ export default class GameScene {
         this.mouseX = null;
         this.mouseY = null;
 
-        this.gold = 200;
+        this.gold = 220;
         this.lives = 20;
         this.wave = 1;
-        this.archerCost = 50;
+        this.gameState = "playing";
 
+        this.selectedTowerType = TOWER_TYPES.ARCHER;
+        this.towerButtons = this.createTowerButtons();
+
+        this.currentWaveIndex = 0;
+        this.currentWaveData = null;
+        this.spawnQueue = [];
         this.spawnTimer = 0;
-        this.spawnInterval = 1.2;
-        this.enemiesToSpawn = 8;
+        this.waveMessage = "";
+        this.waveMessageTimer = 0;
+        this.waveDelayTimer = 1.2;
 
+        this.startWave(this.currentWaveIndex);
         this.bindInput();
+    }
+
+    createTowerButtons() {
+        return [
+            {
+                type: TOWER_TYPES.ARCHER,
+                x: 650,
+                y: 8,
+                width: 130,
+                height: 28
+            },
+            {
+                type: TOWER_TYPES.BOMB,
+                x: 790,
+                y: 8,
+                width: 150,
+                height: 28
+            }
+        ];
     }
 
     bindInput() {
@@ -43,25 +70,66 @@ export default class GameScene {
         });
 
         this.canvas.addEventListener("click", (event) => {
+            if (this.gameState !== "playing") return;
+
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
 
+            const clickedButton = this.getClickedTowerButton(mouseX, mouseY);
+            if (clickedButton) {
+                this.selectedTowerType = clickedButton.type;
+                return;
+            }
+
+            if (mouseY <= 42) return;
+
             const { col, row } = this.placementSystem.getTileFromPixel(mouseX, mouseY);
+            const cost = getTowerCost(this.selectedTowerType);
 
             if (!this.placementSystem.canPlaceAt(col, row)) return;
-            if (this.gold < this.archerCost) return;
+            if (this.gold < cost) return;
 
             const center = this.placementSystem.getTileCenter(col, row);
-            const tower = new Tower(center.x, center.y);
+            const tower = new Tower(center.x, center.y, this.selectedTowerType);
 
             this.towers.push(tower);
             this.placementSystem.placeTower(col, row);
-            this.gold -= this.archerCost;
+            this.gold -= cost;
         });
     }
 
+    getClickedTowerButton(mouseX, mouseY) {
+        return this.towerButtons.find(button => {
+            return mouseX >= button.x && mouseX <= button.x + button.width && mouseY >= button.y && mouseY <= button.y + button.height;
+        });
+    }
+
+    startWave(index) {
+        this.currentWaveData = this.level.waves[index] ?? null;
+
+        if (!this.currentWaveData) {
+            this.gameState = "victory";
+            this.waveMessage = "All waves cleared";
+            this.waveMessageTimer = 999;
+            return;
+        }
+
+        this.wave = index + 1;
+        this.spawnQueue = [...this.currentWaveData.enemies];
+        this.spawnTimer = 0.3;
+        this.waveDelayTimer = 0;
+        this.waveMessage = `Wave ${this.wave}`;
+        this.waveMessageTimer = 2;
+    }
+
     update(dt) {
+        if (this.gameState !== "playing") {
+            this.updateWaveMessage(dt);
+            return;
+        }
+
+        this.updateWaveMessage(dt);
         this.handleSpawning(dt);
 
         for (const enemy of this.enemies) {
@@ -78,17 +146,31 @@ export default class GameScene {
 
         this.handleEnemyCleanup();
         this.handleProjectileCleanup();
+        this.handleWaveProgression(dt);
+
+        if (this.lives <= 0) {
+            this.lives = 0;
+            this.gameState = "defeat";
+            this.waveMessage = "Defeat";
+            this.waveMessageTimer = 999;
+        }
+    }
+
+    updateWaveMessage(dt) {
+        if (this.waveMessageTimer > 0) {
+            this.waveMessageTimer -= dt;
+        }
     }
 
     handleSpawning(dt) {
-        if (this.enemiesToSpawn <= 0) return;
+        if (!this.currentWaveData || this.spawnQueue.length === 0) return;
 
         this.spawnTimer -= dt;
 
         if (this.spawnTimer <= 0) {
-            this.enemies.push(new Enemy(this.path));
-            this.enemiesToSpawn--;
-            this.spawnTimer = this.spawnInterval;
+            const enemyStats = this.spawnQueue.shift();
+            this.enemies.push(new Enemy(this.path, enemyStats));
+            this.spawnTimer = this.currentWaveData.spawnInterval;
         }
     }
 
@@ -97,12 +179,12 @@ export default class GameScene {
 
         for (const enemy of this.enemies) {
             if (enemy.reachedGoal) {
-                this.lives--;
+                this.lives -= enemy.damageToLives;
                 continue;
             }
 
             if (enemy.isDead) {
-                this.gold += 10;
+                this.gold += enemy.reward;
                 continue;
             }
 
@@ -114,6 +196,23 @@ export default class GameScene {
 
     handleProjectileCleanup() {
         this.projectiles = this.projectiles.filter(projectile => !projectile.isExpired);
+    }
+
+    handleWaveProgression(dt) {
+        const waveStillSpawning = this.spawnQueue.length > 0;
+        const enemiesStillAlive = this.enemies.length > 0;
+
+        if (waveStillSpawning || enemiesStillAlive) {
+            this.waveDelayTimer = 1.2;
+            return;
+        }
+
+        this.waveDelayTimer -= dt;
+
+        if (this.waveDelayTimer <= 0) {
+            this.currentWaveIndex += 1;
+            this.startWave(this.currentWaveIndex);
+        }
     }
 
     render(ctx) {
@@ -139,6 +238,8 @@ export default class GameScene {
         }
 
         this.drawHUD(ctx);
+        this.drawWaveBanner(ctx);
+        this.drawEndState(ctx);
     }
 
     drawMap(ctx) {
@@ -178,7 +279,7 @@ export default class GameScene {
     }
 
     drawHUD(ctx) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
         ctx.fillRect(0, 0, this.canvas.width, 42);
 
         ctx.fillStyle = "#ffffff";
@@ -186,7 +287,60 @@ export default class GameScene {
         ctx.fillText(`Gold: ${this.gold}`, 16, 27);
         ctx.fillText(`Lives: ${this.lives}`, 140, 27);
         ctx.fillText(`Wave: ${this.wave}`, 255, 27);
-        ctx.fillText(`Archer Cost: ${this.archerCost}`, 360, 27);
-        ctx.fillText("Click green tiles to place Archer towers", 560, 27);
+        ctx.fillText(`Selected: ${getTowerLabel(this.selectedTowerType)}`, 350, 27);
+
+        for (const button of this.towerButtons) {
+            const selected = button.type === this.selectedTowerType;
+            const label = getTowerLabel(button.type);
+            const cost = getTowerCost(button.type);
+            const affordable = this.gold >= cost;
+
+            ctx.fillStyle = selected
+                ? "rgba(50, 130, 220, 0.95)"
+                : affordable
+                    ? "rgba(30, 30, 30, 0.88)"
+                    : "rgba(70, 30, 30, 0.88)";
+
+            ctx.fillRect(button.x, button.y, button.width, button.height);
+
+            ctx.strokeStyle = selected ? "#ffffff" : "rgba(255,255,255,0.18)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(button.x, button.y, button.width, button.height);
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "14px Arial";
+            ctx.fillText(`${label} (${cost})`, button.x + 10, button.y + 18);
+        }
+    }
+
+    drawWaveBanner(ctx) {
+        if (this.waveMessageTimer <= 0) return;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
+        ctx.fillRect(360, 62, 240, 42);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "24px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(this.waveMessage, 480, 90);
+        ctx.restore();
+    }
+
+    drawEndState(ctx) {
+        if (this.gameState !== "victory" && this.gameState !== "defeat") return;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.font = "42px Arial";
+        ctx.fillText(this.gameState === "victory" ? "Victory" : "Defeat", this.canvas.width / 2, this.canvas.height / 2 - 10);
+
+        ctx.font = "20px Arial";
+        ctx.fillText("Refresh the page to play again", this.canvas.width / 2, this.canvas.height / 2 + 30);
+        ctx.restore();
     }
 }

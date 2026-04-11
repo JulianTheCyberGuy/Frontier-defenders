@@ -64,7 +64,6 @@ export default class PlacementSystem {
 
         const x = col * this.tileSize;
         const y = row * this.tileSize;
-
         const valid = this.canPlaceAt(col, row);
 
         ctx.fillStyle = valid

@@ -1,16 +1,21 @@
 export default class Enemy {
-    constructor(path) {
+    constructor(path, stats = {}) {
         this.path = path;
         this.currentPoint = 0;
 
         this.x = path[0].x;
         this.y = path[0].y;
 
-        this.speed = 55;
-        this.radius = 10;
+        this.type = stats.type ?? "Goblin";
+        this.speed = stats.speed ?? 55;
+        this.radius = stats.radius ?? 10;
+        this.color = stats.color ?? "#b22222";
+        this.reward = stats.reward ?? 10;
+        this.damageToLives = stats.damageToLives ?? 1;
 
-        this.maxHealth = 60;
+        this.maxHealth = stats.maxHealth ?? 60;
         this.health = this.maxHealth;
+
         this.isDead = false;
         this.reachedGoal = false;
     }
@@ -51,7 +56,7 @@ export default class Enemy {
     render(ctx) {
         if (this.isDead) return;
 
-        ctx.fillStyle = "#b22222";
+        ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
