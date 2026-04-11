@@ -9,11 +9,4 @@ const scene = new GameScene(canvas);
 const game = new Game(canvas);
 
 game.sceneManager.changeScene(scene);
-
-window.addEventListener("keydown", (e) => {
-    if (e.key.toLowerCase() === "u") {
-        scene.upgradeSelected();
-    }
-});
-
 game.start();
