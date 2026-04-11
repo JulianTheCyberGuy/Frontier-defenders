@@ -5,6 +5,7 @@ export default class Tower {
         this.x = x;
         this.y = y;
 
+        this.id = options.id ?? "tower";
         this.name = options.name ?? "Tower";
         this.color = options.color ?? "#3c8d2f";
         this.range = options.range ?? 140;
@@ -16,6 +17,11 @@ export default class Tower {
         this.projectileColor = options.projectileColor ?? "#f0e2a0";
         this.splashRadius = options.splashRadius ?? 0;
         this.cost = options.cost ?? 50;
+        this.sellValue = options.sellValue ?? Math.floor(this.cost * 0.7);
+        this.attackStyle = options.attackStyle ?? "projectile";
+        this.swingArc = options.swingArc ?? 1;
+        this.baseX = x;
+        this.baseY = y;
 
         this.cooldown = 0;
     }
@@ -53,6 +59,26 @@ export default class Tower {
     }
 
     attack(target, enemies, projectiles) {
+        if (this.attackStyle === "melee") {
+            let hits = 0;
+
+            for (const enemy of enemies) {
+                if (enemy.isDead || enemy.reachedGoal) continue;
+
+                const distance = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                if (distance <= this.range) {
+                    enemy.takeDamage(this.damage);
+                    hits++;
+
+                    if (hits >= this.swingArc) {
+                        break;
+                    }
+                }
+            }
+
+            return;
+        }
+
         const projectile = new Projectile({
             x: this.x,
             y: this.y,
@@ -81,18 +107,23 @@ export default class Tower {
         projectiles.push(projectile);
     }
 
-    render(ctx) {
+    render(ctx, isSelected = false) {
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = "rgba(0,0,0,0.4)";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = isSelected ? "#ffe082" : "rgba(0,0,0,0.4)";
+        ctx.lineWidth = isSelected ? 3 : 2;
         ctx.stroke();
 
         ctx.fillStyle = "#d9c27a";
         ctx.fillRect(this.x - 3, this.y - 18, 6, 20);
+
+        if (this.attackStyle === "melee") {
+            ctx.fillStyle = "#dcdcdc";
+            ctx.fillRect(this.x + 4, this.y - 14, 3, 14);
+        }
     }
 
     renderRange(ctx) {
@@ -103,5 +134,9 @@ export default class Tower {
         ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
+    }
+
+    containsPoint(x, y) {
+        return Math.hypot(x - this.x, y - this.y) <= this.size + 4;
     }
 }

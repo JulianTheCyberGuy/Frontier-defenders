@@ -9,6 +9,7 @@ export default class PlacementSystem {
         );
 
         this.occupiedTiles = new Set();
+        this.tileToTowerIndex = new Map();
     }
 
     getTileFromPixel(x, y) {
@@ -16,6 +17,10 @@ export default class PlacementSystem {
             col: Math.floor(x / this.tileSize),
             row: Math.floor(y / this.tileSize)
         };
+    }
+
+    getTileKey(col, row) {
+        return `${col},${row}`;
     }
 
     getTileCenter(col, row) {
@@ -30,19 +35,48 @@ export default class PlacementSystem {
     }
 
     isBuildable(col, row) {
-        return this.buildableTiles.has(`${col},${row}`);
+        return this.buildableTiles.has(this.getTileKey(col, row));
     }
 
     isOccupied(col, row) {
-        return this.occupiedTiles.has(`${col},${row}`);
+        return this.occupiedTiles.has(this.getTileKey(col, row));
     }
 
     canPlaceAt(col, row) {
         return this.isInsideGrid(col, row) && this.isBuildable(col, row) && !this.isOccupied(col, row);
     }
 
-    placeTower(col, row) {
-        this.occupiedTiles.add(`${col},${row}`);
+    placeTower(col, row, towerIndex) {
+        const key = this.getTileKey(col, row);
+        this.occupiedTiles.add(key);
+        this.tileToTowerIndex.set(key, towerIndex);
+    }
+
+    removeTower(col, row) {
+        const key = this.getTileKey(col, row);
+        this.occupiedTiles.delete(key);
+        this.tileToTowerIndex.delete(key);
+    }
+
+    getTowerTileByPoint(x, y) {
+        const { col, row } = this.getTileFromPixel(x, y);
+        const key = this.getTileKey(col, row);
+
+        if (this.occupiedTiles.has(key)) {
+            return { col, row, key };
+        }
+
+        return null;
+    }
+
+    rebuildTowerIndexMap(towers) {
+        this.tileToTowerIndex.clear();
+
+        for (let i = 0; i < towers.length; i++) {
+            const tower = towers[i];
+            if (tower.col == null || tower.row == null) continue;
+            this.tileToTowerIndex.set(this.getTileKey(tower.col, tower.row), i);
+        }
     }
 
     renderBuildTiles(ctx) {
