@@ -1,4 +1,3 @@
-
 import Game from "./engine/Game.js";
 import GameScene from "./scenes/GameScene.js";
 
@@ -6,6 +5,15 @@ const canvas = document.getElementById("gameCanvas");
 canvas.width = 960;
 canvas.height = 540;
 
+const scene = new GameScene(canvas);
 const game = new Game(canvas);
-game.sceneManager.changeScene(new GameScene(canvas));
+
+game.sceneManager.changeScene(scene);
+
+window.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() === "u") {
+        scene.upgradeSelected();
+    }
+});
+
 game.start();
