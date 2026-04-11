@@ -3,7 +3,11 @@ export default class PlacementSystem {
         this.tileSize = levelData.tileSize;
         this.cols = levelData.cols;
         this.rows = levelData.rows;
-        this.buildableTiles = new Set(levelData.buildableTiles.map(tile => `${tile.col},${tile.row}`));
+
+        this.buildableTiles = new Set(
+            levelData.buildableTiles.map(tile => `${tile.col},${tile.row}`)
+        );
+
         this.occupiedTiles = new Set();
     }
 
@@ -47,7 +51,7 @@ export default class PlacementSystem {
             const x = col * this.tileSize;
             const y = row * this.tileSize;
 
-            ctx.fillStyle = "rgba(80, 160, 80, 0.18)";
+            ctx.fillStyle = "rgba(60, 150, 70, 0.15)";
             ctx.fillRect(x, y, this.tileSize, this.tileSize);
 
             ctx.strokeStyle = "rgba(255,255,255,0.05)";
@@ -59,7 +63,6 @@ export default class PlacementSystem {
         if (mouseX == null || mouseY == null) return;
 
         const { col, row } = this.getTileFromPixel(mouseX, mouseY);
-
         if (!this.isInsideGrid(col, row)) return;
 
         const x = col * this.tileSize;
@@ -67,15 +70,13 @@ export default class PlacementSystem {
         const valid = this.canPlaceAt(col, row);
 
         ctx.fillStyle = valid
-            ? "rgba(80, 200, 120, 0.28)"
-            : "rgba(200, 60, 60, 0.25)";
-
+            ? "rgba(100, 220, 120, 0.26)"
+            : "rgba(220, 90, 90, 0.24)";
         ctx.fillRect(x, y, this.tileSize, this.tileSize);
 
         ctx.strokeStyle = valid
-            ? "rgba(160, 255, 180, 0.5)"
-            : "rgba(255, 120, 120, 0.5)";
-
+            ? "rgba(170, 255, 180, 0.45)"
+            : "rgba(255, 130, 130, 0.45)";
         ctx.strokeRect(x, y, this.tileSize, this.tileSize);
     }
 }

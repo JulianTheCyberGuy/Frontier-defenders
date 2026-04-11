@@ -1,3 +1,13 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #111;
+    font-family: Arial, Helvetica, sans-serif;
+}
 
-body { margin:0; background:#111; }
-canvas { display:block; margin:0 auto; background:#1f1f1f; }
+canvas {
+    display: block;
+    margin: 0 auto;
+    background: #1c1c1c;
+    cursor: crosshair;
+}
