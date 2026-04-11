@@ -1,3 +1,4 @@
+
 import Game from "./engine/Game.js";
 import GameScene from "./scenes/GameScene.js";
 
@@ -7,5 +8,4 @@ canvas.height = 540;
 
 const game = new Game(canvas);
 game.sceneManager.changeScene(new GameScene(canvas));
-
 game.start();
