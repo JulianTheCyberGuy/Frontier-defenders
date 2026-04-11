@@ -1,142 +1,60 @@
+
 import Projectile from "./Projectile.js";
 
 export default class Tower {
-    constructor(x, y, options = {}) {
-        this.x = x;
-        this.y = y;
+    constructor(x,y,type){
+        this.x=x; this.y=y;
+        this.type=type;
+        this.cool=0;
 
-        this.id = options.id ?? "tower";
-        this.name = options.name ?? "Tower";
-        this.color = options.color ?? "#3c8d2f";
-        this.range = options.range ?? 140;
-        this.fireRate = options.fireRate ?? 1.0;
-        this.damage = options.damage ?? 20;
-        this.projectileSpeed = options.projectileSpeed ?? 280;
-        this.size = options.size ?? 14;
-        this.projectileRadius = options.projectileRadius ?? 4;
-        this.projectileColor = options.projectileColor ?? "#f0e2a0";
-        this.splashRadius = options.splashRadius ?? 0;
-        this.cost = options.cost ?? 50;
-        this.sellValue = options.sellValue ?? Math.floor(this.cost * 0.7);
-        this.attackStyle = options.attackStyle ?? "projectile";
-        this.swingArc = options.swingArc ?? 1;
-        this.baseX = x;
-        this.baseY = y;
-
-        this.cooldown = 0;
-    }
-
-    update(dt, enemies, projectiles) {
-        if (this.cooldown > 0) {
-            this.cooldown -= dt;
-        }
-
-        const target = this.findTarget(enemies);
-
-        if (target && this.cooldown <= 0) {
-            this.attack(target, enemies, projectiles);
-            this.cooldown = 1 / this.fireRate;
+        if(type==="mage"){
+            this.range=160;
+            this.rate=0.8;
+            this.damage=30;
+            this.charge=0;
+        } else {
+            this.range=140;
+            this.rate=1;
+            this.damage=20;
         }
     }
 
-    findTarget(enemies) {
-        let bestTarget = null;
-        let bestProgress = -1;
+    update(dt,enemies,projectiles){
+        this.cool -= dt;
 
-        for (const enemy of enemies) {
-            if (enemy.isDead || enemy.reachedGoal) continue;
-
-            const distance = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-            if (distance > this.range) continue;
-
-            if (enemy.currentPoint > bestProgress) {
-                bestProgress = enemy.currentPoint;
-                bestTarget = enemy;
+        let target=null;
+        for(const e of enemies){
+            if(e.dead) continue;
+            if(Math.hypot(e.x-this.x,e.y-this.y)<this.range){
+                target=e; break;
             }
         }
 
-        return bestTarget;
-    }
-
-    attack(target, enemies, projectiles) {
-        if (this.attackStyle === "melee") {
-            let hits = 0;
-
-            for (const enemy of enemies) {
-                if (enemy.isDead || enemy.reachedGoal) continue;
-
-                const distance = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-                if (distance <= this.range) {
-                    enemy.takeDamage(this.damage);
-                    hits++;
-
-                    if (hits >= this.swingArc) {
-                        break;
-                    }
-                }
-            }
-
-            return;
-        }
-
-        const projectile = new Projectile({
-            x: this.x,
-            y: this.y,
-            target,
-            damage: this.damage,
-            speed: this.projectileSpeed,
-            radius: this.projectileRadius,
-            color: this.projectileColor,
-            splashRadius: this.splashRadius,
-            onImpact: (proj) => {
-                if (proj.splashRadius > 0) {
-                    for (const enemy of enemies) {
-                        if (enemy.isDead || enemy.reachedGoal) continue;
-
-                        const distance = Math.hypot(enemy.x - proj.x, enemy.y - proj.y);
-                        if (distance <= proj.splashRadius) {
-                            enemy.takeDamage(proj.damage);
+        if(target && this.cool<=0){
+            if(this.type==="mage"){
+                this.charge++;
+                if(this.charge>=3){
+                    // meteor burst
+                    for(const e of enemies){
+                        if(!e.dead && Math.hypot(e.x-this.x,e.y-this.y)<this.range){
+                            e.takeDamage(40);
                         }
                     }
-                } else if (proj.target && !proj.target.isDead) {
-                    proj.target.takeDamage(proj.damage);
+                    this.charge=0;
+                } else {
+                    projectiles.push(new Projectile(this.x,this.y,target,this.damage));
                 }
+            } else {
+                projectiles.push(new Projectile(this.x,this.y,target,this.damage));
             }
-        });
-
-        projectiles.push(projectile);
-    }
-
-    render(ctx, isSelected = false) {
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = isSelected ? "#ffe082" : "rgba(0,0,0,0.4)";
-        ctx.lineWidth = isSelected ? 3 : 2;
-        ctx.stroke();
-
-        ctx.fillStyle = "#d9c27a";
-        ctx.fillRect(this.x - 3, this.y - 18, 6, 20);
-
-        if (this.attackStyle === "melee") {
-            ctx.fillStyle = "#dcdcdc";
-            ctx.fillRect(this.x + 4, this.y - 14, 3, 14);
+            this.cool=1/this.rate;
         }
     }
 
-    renderRange(ctx) {
-        ctx.save();
-        ctx.strokeStyle = "rgba(255,255,255,0.12)";
-        ctx.lineWidth = 1;
+    render(ctx){
+        ctx.fillStyle = this.type==="mage" ? "purple" : "green";
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    containsPoint(x, y) {
-        return Math.hypot(x - this.x, y - this.y) <= this.size + 4;
+        ctx.arc(this.x,this.y,12,0,Math.PI*2);
+        ctx.fill();
     }
 }

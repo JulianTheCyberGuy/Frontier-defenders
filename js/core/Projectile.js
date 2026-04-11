@@ -1,61 +1,29 @@
+
 export default class Projectile {
-    constructor(options) {
-        this.x = options.x;
-        this.y = options.y;
-        this.target = options.target;
-        this.damage = options.damage;
-        this.speed = options.speed ?? 280;
-        this.radius = options.radius ?? 4;
-        this.color = options.color ?? "#f0e2a0";
-        this.splashRadius = options.splashRadius ?? 0;
-        this.onImpact = options.onImpact ?? null;
-
-        this.isExpired = false;
+    constructor(x,y,target,damage){
+        this.x=x; this.y=y;
+        this.target=target;
+        this.damage=damage;
+        this.dead=false;
     }
-
-    update(dt) {
-        if (this.isExpired) return;
-
-        if (!this.target || this.target.isDead || this.target.reachedGoal) {
-            this.isExpired = true;
-            return;
-        }
-
-        const dx = this.target.x - this.x;
-        const dy = this.target.y - this.y;
-        const distance = Math.hypot(dx, dy);
-
-        if (distance <= this.radius + this.target.radius) {
-            this.hit();
-            return;
-        }
-
-        this.x += (dx / distance) * this.speed * dt;
-        this.y += (dy / distance) * this.speed * dt;
-    }
-
-    hit() {
-        if (this.isExpired) return;
-
-        if (typeof this.onImpact === "function") {
-            this.onImpact(this);
-        } else if (this.target && !this.target.isDead) {
+    update(dt){
+        if(this.dead || !this.target || this.target.dead){ this.dead=true; return; }
+        const dx=this.target.x-this.x;
+        const dy=this.target.y-this.y;
+        const d=Math.hypot(dx,dy);
+        if(d<8){
             this.target.takeDamage(this.damage);
+            this.dead=true;
+            return;
         }
-
-        this.isExpired = true;
+        this.x+=dx/d*300*dt;
+        this.y+=dy/d*300*dt;
     }
-
-    render(ctx) {
-        if (this.isExpired) return;
-
-        ctx.fillStyle = this.color;
+    render(ctx){
+        if(this.dead) return;
+        ctx.fillStyle="yellow";
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x,this.y,4,0,Math.PI*2);
         ctx.fill();
-
-        ctx.strokeStyle = "rgba(0,0,0,0.35)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
     }
 }

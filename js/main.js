@@ -1,3 +1,4 @@
+
 import Game from "./engine/Game.js";
 import GameScene from "./scenes/GameScene.js";
 
