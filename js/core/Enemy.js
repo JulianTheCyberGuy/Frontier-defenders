@@ -1,25 +1,72 @@
-
 export default class Enemy {
-constructor(path){
-this.path=path; this.i=0;
-this.x=path[0].x; this.y=path[0].y;
-this.hp=120; this.dead=false;
-this.speed=50;
-}
-update(dt){
-if(this.dead) return;
-if(this.i>=this.path.length-1) return;
-const t=this.path[this.i+1];
-const dx=t.x-this.x, dy=t.y-this.y;
-const d=Math.hypot(dx,dy);
-if(d<2){this.i++;return;}
-this.x+=dx/d*this.speed*dt;
-this.y+=dy/d*this.speed*dt;
-}
-takeDamage(d){this.hp-=d; if(this.hp<=0)this.dead=true;}
-render(ctx){
-if(this.dead) return;
-ctx.fillStyle="red";
-ctx.beginPath(); ctx.arc(this.x,this.y,10,0,Math.PI*2); ctx.fill();
-}
+    constructor(path, stats = {}) {
+        this.path = path;
+        this.i = 0;
+
+        this.x = path[0].x;
+        this.y = path[0].y;
+
+        this.name = stats.name ?? "Enemy";
+        this.maxHp = stats.hp ?? 100;
+        this.hp = this.maxHp;
+        this.speed = stats.speed ?? 50;
+        this.reward = stats.reward ?? 10;
+        this.radius = stats.radius ?? 10;
+        this.color = stats.color ?? "red";
+
+        this.dead = false;
+        this.escaped = false;
+    }
+
+    update(dt) {
+        if (this.dead || this.escaped) return;
+
+        if (this.i >= this.path.length - 1) {
+            this.escaped = true;
+            return;
+        }
+
+        const target = this.path[this.i + 1];
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance < 2) {
+            this.i++;
+            return;
+        }
+
+        this.x += (dx / distance) * this.speed * dt;
+        this.y += (dy / distance) * this.speed * dt;
+    }
+
+    takeDamage(amount) {
+        if (this.dead) return;
+
+        this.hp -= amount;
+
+        if (this.hp <= 0) {
+            this.hp = 0;
+            this.dead = true;
+        }
+    }
+
+    render(ctx) {
+        if (this.dead) return;
+
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        const barWidth = 24;
+        const barHeight = 4;
+        const ratio = this.hp / this.maxHp;
+
+        ctx.fillStyle = "#111";
+        ctx.fillRect(this.x - barWidth / 2, this.y - 18, barWidth, barHeight);
+
+        ctx.fillStyle = "#39d353";
+        ctx.fillRect(this.x - barWidth / 2, this.y - 18, barWidth * ratio, barHeight);
+    }
 }

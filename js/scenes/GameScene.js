@@ -2,30 +2,86 @@ import Enemy from "../core/Enemy.js";
 import Tower from "../core/Tower.js";
 import Projectile from "../core/Projectile.js";
 import level1 from "../levels/level1.js";
+import level2 from "../levels/level2.js";
 
 export default class GameScene {
     constructor(canvas) {
         this.canvas = canvas;
-        this.path = level1.path;
 
-        this.enemies = [];
-        this.towers = [];
-        this.projectiles = [];
+        this.levels = [
+            {
+                id: 1,
+                name: "Forest Road",
+                data: level1,
+                waves: [
+                    ["grunt", "grunt", "scout", "grunt", "scout"],
+                    ["grunt", "grunt", "tank", "scout", "grunt", "scout"],
+                    ["tank", "grunt", "scout", "tank", "grunt", "scout", "scout"]
+                ]
+            },
+            {
+                id: 2,
+                name: "Ruined Keep",
+                data: level2,
+                waves: [
+                    ["grunt", "scout", "grunt", "tank", "scout"],
+                    ["tank", "grunt", "scout", "scout", "tank", "grunt"],
+                    ["tank", "tank", "scout", "grunt", "scout", "grunt", "tank"]
+                ]
+            }
+        ];
 
-        this.gold = 250;
-        this.selectedTower = null;
-        this.selectedType = "archer";
+        this.enemyTypes = {
+            scout: {
+                name: "Scout",
+                hp: 55,
+                speed: 90,
+                reward: 8,
+                radius: 8,
+                color: "#ff7b72"
+            },
+            grunt: {
+                name: "Grunt",
+                hp: 120,
+                speed: 52,
+                reward: 12,
+                radius: 10,
+                color: "#d29922"
+            },
+            tank: {
+                name: "Tank",
+                hp: 240,
+                speed: 34,
+                reward: 20,
+                radius: 13,
+                color: "#8b949e"
+            }
+        };
 
-        this.spawn = 0;
+        this.towerCosts = {
+            archer: 50,
+            bomb: 70,
+            berserker: 65,
+            rogue: 60,
+            mage: 80
+        };
+
         this.buttons = ["archer", "bomb", "berserker", "rogue", "mage"];
-
         this.upgradeButtons = [
             { x: 700, y: 70, width: 220, height: 34, id: "left" },
             { x: 700, y: 112, width: 220, height: 34, id: "right" }
         ];
 
-        canvas.addEventListener("click", (e) => {
-            const r = canvas.getBoundingClientRect();
+        this.selectedType = "archer";
+        this.selectedTower = null;
+
+        this.bindEvents();
+        this.loadLevel(0);
+    }
+
+    bindEvents() {
+        this.canvas.addEventListener("click", (e) => {
+            const r = this.canvas.getBoundingClientRect();
             const x = e.clientX - r.left;
             const y = e.clientY - r.top;
 
@@ -62,13 +118,63 @@ export default class GameScene {
                 }
             }
 
-            if (this.gold >= 50) {
-                const tower = new Tower(x, y, this.selectedType);
-                this.towers.push(tower);
-                this.gold -= 50;
-                this.selectedTower = tower;
+            const cost = this.towerCosts[this.selectedType];
+            if (this.gold < cost) return;
+
+            const tower = new Tower(x, y, this.selectedType);
+            this.towers.push(tower);
+            this.gold -= cost;
+            this.selectedTower = tower;
+        });
+
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "1") {
+                this.loadLevel(0);
+            }
+
+            if (e.key === "2") {
+                this.loadLevel(1);
             }
         });
+    }
+
+    loadLevel(index) {
+        this.currentLevelIndex = index;
+        this.currentLevel = this.levels[index];
+        this.path = this.currentLevel.data.path;
+
+        this.enemies = [];
+        this.towers = [];
+        this.projectiles = [];
+
+        this.gold = 250;
+        this.lives = 20;
+        this.selectedTower = null;
+
+        this.waveIndex = 0;
+        this.waveTimer = 0;
+        this.spawnTimer = 0;
+        this.spawnGap = 0.9;
+        this.pendingWave = [];
+        this.gameOver = false;
+        this.victory = false;
+
+        this.startWave();
+    }
+
+    startWave() {
+        if (this.waveIndex >= this.currentLevel.waves.length) {
+            this.victory = true;
+            return;
+        }
+
+        this.pendingWave = [...this.currentLevel.waves[this.waveIndex]];
+        this.spawnTimer = 0;
+    }
+
+    spawnEnemy(role) {
+        const stats = this.enemyTypes[role];
+        this.enemies.push(new Enemy(this.path, stats));
     }
 
     tryUpgradeTower(pathId) {
@@ -85,11 +191,17 @@ export default class GameScene {
     }
 
     update(dt) {
-        this.spawn -= dt;
+        if (this.gameOver || this.victory) {
+            return;
+        }
 
-        if (this.spawn <= 0) {
-            this.enemies.push(new Enemy(this.path));
-            this.spawn = 1;
+        this.waveTimer += dt;
+        this.spawnTimer -= dt;
+
+        if (this.pendingWave.length > 0 && this.spawnTimer <= 0) {
+            const nextRole = this.pendingWave.shift();
+            this.spawnEnemy(nextRole);
+            this.spawnTimer = this.spawnGap;
         }
 
         for (const enemy of this.enemies) {
@@ -104,8 +216,32 @@ export default class GameScene {
             projectile.update(dt);
         }
 
-        this.enemies = this.enemies.filter(enemy => !enemy.dead);
+        for (const enemy of this.enemies) {
+            if (enemy.dead) {
+                this.gold += enemy.reward;
+            }
+
+            if (enemy.escaped) {
+                this.lives -= 1;
+            }
+        }
+
+        this.enemies = this.enemies.filter(enemy => !enemy.dead && !enemy.escaped);
         this.projectiles = this.projectiles.filter(projectile => !projectile.dead);
+
+        if (this.lives <= 0) {
+            this.gameOver = true;
+        }
+
+        if (
+            this.pendingWave.length === 0 &&
+            this.enemies.length === 0 &&
+            !this.gameOver &&
+            !this.victory
+        ) {
+            this.waveIndex++;
+            this.startWave();
+        }
     }
 
     render(ctx) {
@@ -125,6 +261,15 @@ export default class GameScene {
 
         this.drawTopBar(ctx);
         this.drawSelectedTowerPanel(ctx);
+        this.drawLevelInfo(ctx);
+
+        if (this.gameOver) {
+            this.drawOverlay(ctx, "Defeat");
+        }
+
+        if (this.victory) {
+            this.drawOverlay(ctx, "Victory");
+        }
     }
 
     drawPath(ctx) {
@@ -147,10 +292,15 @@ export default class GameScene {
         ctx.fillStyle = "white";
         ctx.font = "16px Arial";
         ctx.fillText("Gold: " + this.gold, 10, 24);
+        ctx.fillText("Lives: " + this.lives, 120, 24);
+        ctx.fillText("Wave: " + Math.min(this.waveIndex + 1, this.currentLevel.waves.length) + "/" + this.currentLevel.waves.length, 220, 24);
 
         this.buttons.forEach((type, i) => {
+            const x = 120 * i + 20;
+            const label = `${type} (${this.towerCosts[type]})`;
+
             ctx.fillStyle = this.selectedType === type ? "gold" : "gray";
-            ctx.fillText(type, 120 * i + 20, 24);
+            ctx.fillText(label, x, 24);
         });
     }
 
@@ -196,5 +346,22 @@ export default class GameScene {
             ctx.font = "14px Arial";
             ctx.fillText(choices[i].label, button.x + 10, button.y + 22);
         }
+    }
+
+    drawLevelInfo(ctx) {
+        ctx.fillStyle = "white";
+        ctx.font = "14px Arial";
+        ctx.fillText("Press 1 for Forest Road", 10, 60);
+        ctx.fillText("Press 2 for Ruined Keep", 10, 80);
+        ctx.fillText("Current Level: " + this.currentLevel.name, 10, 100);
+    }
+
+    drawOverlay(ctx, text) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        ctx.fillStyle = "white";
+        ctx.font = "40px Arial";
+        ctx.fillText(text, 400, 260);
     }
 }
