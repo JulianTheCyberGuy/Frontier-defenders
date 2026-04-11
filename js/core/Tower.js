@@ -2,59 +2,71 @@
 import Projectile from "./Projectile.js";
 
 export default class Tower {
-    constructor(x,y,type){
-        this.x=x; this.y=y;
-        this.type=type;
-        this.cool=0;
+constructor(x,y,type){
+this.x=x; this.y=y; this.type=type; this.cool=0;
 
-        if(type==="mage"){
-            this.range=160;
-            this.rate=0.8;
-            this.damage=30;
-            this.charge=0;
-        } else {
-            this.range=140;
-            this.rate=1;
-            this.damage=20;
-        }
-    }
+const stats={
+archer:{range:150,rate:1,damage:20,color:"green"},
+bomb:{range:130,rate:0.6,damage:25,color:"orange"},
+berserker:{range:50,rate:1.2,damage:25,color:"darkred"},
+rogue:{range:40,rate:2.5,damage:10,color:"purple"},
+mage:{range:160,rate:0.8,damage:30,color:"blue"}
+};
 
-    update(dt,enemies,projectiles){
-        this.cool -= dt;
+Object.assign(this,stats[type]);
+this.charge=0;
+}
 
-        let target=null;
-        for(const e of enemies){
-            if(e.dead) continue;
-            if(Math.hypot(e.x-this.x,e.y-this.y)<this.range){
-                target=e; break;
-            }
-        }
+update(dt,enemies,projectiles){
+this.cool-=dt;
+let target=null;
 
-        if(target && this.cool<=0){
-            if(this.type==="mage"){
-                this.charge++;
-                if(this.charge>=3){
-                    // meteor burst
-                    for(const e of enemies){
-                        if(!e.dead && Math.hypot(e.x-this.x,e.y-this.y)<this.range){
-                            e.takeDamage(40);
-                        }
-                    }
-                    this.charge=0;
-                } else {
-                    projectiles.push(new Projectile(this.x,this.y,target,this.damage));
-                }
-            } else {
-                projectiles.push(new Projectile(this.x,this.y,target,this.damage));
-            }
-            this.cool=1/this.rate;
-        }
-    }
+for(const e of enemies){
+if(e.dead) continue;
+if(Math.hypot(e.x-this.x,e.y-this.y)<this.range){
+target=e; break;
+}
+}
 
-    render(ctx){
-        ctx.fillStyle = this.type==="mage" ? "purple" : "green";
-        ctx.beginPath();
-        ctx.arc(this.x,this.y,12,0,Math.PI*2);
-        ctx.fill();
-    }
+if(target && this.cool<=0){
+
+if(this.type==="berserker"||this.type==="rogue"){
+for(const e of enemies){
+if(!e.dead && Math.hypot(e.x-this.x,e.y-this.y)<this.range){
+e.takeDamage(this.damage);
+}
+}
+}
+else if(this.type==="bomb"){
+for(const e of enemies){
+if(!e.dead && Math.hypot(e.x-target.x,e.y-target.y)<60){
+e.takeDamage(this.damage);
+}
+}
+}
+else if(this.type==="mage"){
+this.charge++;
+if(this.charge>=3){
+for(const e of enemies){
+if(!e.dead && Math.hypot(e.x-this.x,e.y-this.y)<this.range){
+e.takeDamage(40);
+}
+}
+this.charge=0;
+}else{
+projectiles.push(new Projectile(this.x,this.y,target,this.damage));
+}
+}
+else{
+projectiles.push(new Projectile(this.x,this.y,target,this.damage));
+}
+
+this.cool=1/this.rate;
+}
+}
+
+render(ctx){
+ctx.fillStyle=this.color;
+ctx.beginPath();ctx.arc(this.x,this.y,12,0,Math.PI*2);ctx.fill();
+}
 }
