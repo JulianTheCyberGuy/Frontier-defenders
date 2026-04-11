@@ -3,7 +3,7 @@ export default class Enemy {
 constructor(path){
 this.path=path; this.i=0;
 this.x=path[0].x; this.y=path[0].y;
-this.hp=100; this.dead=false;
+this.hp=120; this.dead=false;
 this.speed=50;
 }
 update(dt){

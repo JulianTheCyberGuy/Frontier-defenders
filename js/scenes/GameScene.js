@@ -9,16 +9,41 @@ constructor(canvas){
 this.canvas=canvas;
 this.path=level1.path;
 
-this.enemies=[]; this.towers=[]; this.projectiles=[];
-this.gold=200; this.selected="archer";
+this.enemies=[];
+this.towers=[];
+this.projectiles=[];
+
+this.gold=200;
+this.selectedTower=null;
 
 canvas.addEventListener("click",(e)=>{
 const r=canvas.getBoundingClientRect();
 const x=e.clientX-r.left;
 const y=e.clientY-r.top;
-this.towers.push(new Tower(x,y,this.selected));
+
+// check tower click
+for(const t of this.towers){
+if(t.contains(x,y)){
+this.selectedTower=t;
+return;
+}
+}
+
+// place new
+if(this.gold>=50){
+const t=new Tower(x,y);
+this.towers.push(t);
+this.gold-=50;
+}
 });
 
+canvas.addEventListener("contextmenu",(e)=>{
+e.preventDefault();
+if(this.selectedTower && this.gold>=50){
+this.selectedTower.upgrade();
+this.gold-=50;
+}
+});
 this.spawn=0;
 }
 
@@ -51,6 +76,7 @@ for(const p of this.projectiles) p.render(ctx);
 for(const e of this.enemies) e.render(ctx);
 
 ctx.fillStyle="white";
-ctx.fillText("All 5 towers integrated. Demo ready.",10,20);
+ctx.fillText("Left click: place/select | Right click: upgrade",10,20);
+ctx.fillText("Gold: "+this.gold,10,40);
 }
 }
