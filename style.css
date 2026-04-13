@@ -1,8 +1,11 @@
 :root {
     color-scheme: dark;
-    --bg-top: #08101c;
-    --bg-bottom: #04070d;
-    --frame: rgba(255, 255, 255, 0.08);
+    --bg-top: #0b0810;
+    --bg-middle: #15101d;
+    --bg-bottom: #050409;
+    --frame: rgba(255, 232, 196, 0.1);
+    --frame-strong: rgba(226, 187, 110, 0.2);
+    --canvas-shadow: rgba(0, 0, 0, 0.52);
 }
 
 * {
@@ -23,10 +26,11 @@ body {
     overflow: hidden;
     font-family: "Inter", sans-serif;
     background:
-        radial-gradient(circle at top left, rgba(126, 240, 194, 0.12), transparent 26%),
-        radial-gradient(circle at bottom right, rgba(127, 179, 255, 0.16), transparent 28%),
-        linear-gradient(180deg, var(--bg-top) 0%, #0a1120 42%, var(--bg-bottom) 100%);
-    color: #f4f7fb;
+        radial-gradient(circle at 14% 16%, rgba(215, 176, 109, 0.12), transparent 24%),
+        radial-gradient(circle at 84% 18%, rgba(141, 167, 255, 0.11), transparent 22%),
+        radial-gradient(circle at 50% 100%, rgba(126, 215, 178, 0.08), transparent 26%),
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-middle) 46%, var(--bg-bottom) 100%);
+    color: #f7f0e5;
 }
 
 body::before {
@@ -34,11 +38,12 @@ body::before {
     position: fixed;
     inset: 0;
     pointer-events: none;
+    opacity: 0.42;
     background-image:
-        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        linear-gradient(rgba(255, 248, 234, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 248, 234, 0.025) 1px, transparent 1px);
     background-size: 34px 34px;
-    mask-image: radial-gradient(circle at center, black, transparent 84%);
+    mask-image: radial-gradient(circle at center, black, transparent 82%);
 }
 
 body::after {
@@ -47,7 +52,7 @@ body::after {
     inset: 0;
     pointer-events: none;
     background:
-        radial-gradient(circle at center, transparent 50%, rgba(2, 4, 8, 0.54) 100%);
+        radial-gradient(circle at center, transparent 56%, rgba(3, 2, 5, 0.56) 100%);
 }
 
 .game-shell {
@@ -56,18 +61,34 @@ body::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 18px;
 }
 
 canvas {
     display: block;
-    width: min(calc(100vw - 32px), calc((100vh - 32px) * 1.7777778));
+    width: min(calc(100vw - 36px), calc((100vh - 36px) * 1.7777778));
     height: auto;
-    max-height: calc(100vh - 32px);
+    max-height: calc(100vh - 36px);
     border: 1px solid var(--frame);
-    border-radius: 26px;
+    outline: 1px solid var(--frame-strong);
+    outline-offset: -10px;
+    border-radius: 30px;
     box-shadow:
-        0 28px 90px rgba(0, 0, 0, 0.48),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    background: #0d1321;
+        0 34px 100px var(--canvas-shadow),
+        0 0 0 1px rgba(255, 244, 220, 0.04),
+        inset 0 1px 0 rgba(255, 248, 234, 0.08),
+        inset 0 -24px 60px rgba(0, 0, 0, 0.26);
+    background: #0f0b13;
+}
+
+@media (max-width: 900px) {
+    .game-shell {
+        padding: 12px;
+    }
+
+    canvas {
+        width: min(calc(100vw - 24px), calc((100vh - 24px) * 1.7777778));
+        max-height: calc(100vh - 24px);
+        border-radius: 22px;
+    }
 }

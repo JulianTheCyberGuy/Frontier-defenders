@@ -1,7 +1,6 @@
 import LevelSelectScene from "./LevelSelectScene.js";
-import GameScene from "./GameScene.js";
+import SettingsScene from "./SettingsScene.js";
 import UIRenderer from "../ui/UIRenderer.js";
-import SaveSystem from "../systems/SaveSystem.js";
 
 export default class MainMenuScene {
     constructor(canvas, sceneManager, soundManager) {
@@ -11,18 +10,14 @@ export default class MainMenuScene {
         this.ui = new UIRenderer(canvas);
         this.hoveredId = null;
         this.layout = this.ui.getMainMenuLayout();
-        this.time = 0;
-        this.introFade = 1;
-        this.totalLevels = 3;
-        this.highestUnlockedLevel = SaveSystem.getHighestUnlockedLevel();
 
         this.handleClick = this.handleClick.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
     }
 
     onEnter() {
-        this.highestUnlockedLevel = SaveSystem.getHighestUnlockedLevel();
         this.refreshLayout();
+        this.soundManager.startMenuMusic();
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
     }
@@ -46,16 +41,6 @@ export default class MainMenuScene {
         return null;
     }
 
-    openLevelSelect() {
-        this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
-    }
-
-    startCampaign() {
-        const gameScene = new GameScene(this.canvas, this.sceneManager, this.soundManager);
-        gameScene.loadLevel(this.highestUnlockedLevel);
-        this.sceneManager.changeScene(gameScene);
-    }
-
     handleClick(event) {
         this.refreshLayout();
         const { x, y } = this.ui.getPointerPosition(event);
@@ -63,14 +48,16 @@ export default class MainMenuScene {
 
         if (!action) return;
 
-        this.soundManager.playConfirm();
-
-        if (action === "start") {
-            this.startCampaign();
+        if (action === "start" || action === "levels") {
+            this.soundManager.playConfirm();
+            this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
             return;
         }
 
-        this.openLevelSelect();
+        if (action === "settings") {
+            this.soundManager.playClick();
+            this.sceneManager.changeScene(new SettingsScene(this.canvas, this.sceneManager, this.soundManager));
+        }
     }
 
     handleMouseMove(event) {
@@ -80,66 +67,63 @@ export default class MainMenuScene {
         this.canvas.style.cursor = this.hoveredId ? "pointer" : "default";
     }
 
-    update(dt = 0) {
-        this.time += dt;
-        this.introFade = Math.max(0, this.introFade - dt * 1.4);
-    }
+    update() {}
 
     render(ctx) {
         this.refreshLayout();
-        const { frame, hero, featurePanel, infoPanel, buttons, featurePills } = this.layout;
-        const levelsUnlocked = Math.min(this.highestUnlockedLevel + 1, this.totalLevels);
-        const campaignLabel = this.highestUnlockedLevel > 0 ? "Continue Campaign" : "Start Campaign";
-        const currentFront = ["Forest Road", "Ruined Keep", "Lava Dungeon Gate"][this.highestUnlockedLevel] ?? "Forest Road";
+        const { frame, hero, statusPanel, featurePanel, infoPanel, buttons, featurePills } = this.layout;
 
         this.ui.drawBackdrop(ctx, {
-            top: "#08111e",
-            bottom: "#05080f",
-            accent: "rgba(74, 222, 128, 0.12)"
+            top: "#120d17",
+            bottom: "#050409",
+            accent: "rgba(215, 176, 109, 0.14)",
+            accentTwo: "rgba(141, 167, 255, 0.1)"
         });
 
         this.ui.drawPanel(ctx, frame.x, frame.y, frame.width, frame.height, {
             radius: 30,
-            fill: "rgba(7, 12, 22, 0.78)",
-            border: "rgba(255, 255, 255, 0.1)",
-            glow: "rgba(56, 189, 248, 0.1)"
+            fill: "rgba(8, 7, 12, 0.76)",
+            border: "rgba(255, 232, 196, 0.1)",
+            glow: "rgba(215, 176, 109, 0.08)"
         });
 
         this.ui.drawPanel(ctx, hero.x, hero.y, hero.width, hero.height, {
             radius: 28,
-            fill: "rgba(9, 16, 29, 0.9)",
-            border: "rgba(198, 223, 255, 0.12)",
-            glow: "rgba(74, 222, 128, 0.08)"
+            fill: "rgba(18, 14, 22, 0.91)",
+            border: "rgba(255, 232, 196, 0.12)",
+            glow: "rgba(126, 215, 178, 0.06)"
         });
 
         ctx.save();
-        const floatA = Math.sin(this.time * 1.15) * 8;
-        const floatB = Math.cos(this.time * 0.9) * 10;
-        ctx.fillStyle = "rgba(126, 240, 194, 0.14)";
+        ctx.fillStyle = "rgba(215, 176, 109, 0.14)";
         ctx.beginPath();
-        ctx.arc(hero.x + hero.width - 92, hero.y + 86 + floatA, 64, 0, Math.PI * 2);
+        ctx.arc(hero.x + hero.width - 96, hero.y + 94, 70, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "rgba(127, 179, 255, 0.12)";
+        ctx.fillStyle = "rgba(141, 167, 255, 0.12)";
         ctx.beginPath();
-        ctx.arc(hero.x + 88, hero.y + hero.height - 92 + floatB, 84, 0, Math.PI * 2);
+        ctx.arc(hero.x + 92, hero.y + hero.height - 98, 90, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(126, 215, 178, 0.08)";
+        ctx.beginPath();
+        ctx.arc(hero.x + hero.width * 0.56, hero.y + hero.height * 0.66, 120, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
         ctx.save();
         ctx.textAlign = "left";
-        ctx.fillStyle = "#f8fbff";
+        ctx.fillStyle = "#f8f4eb";
         ctx.font = "700 14px Inter";
-        ctx.fillText("TACTICAL FANTASY DEFENSE", hero.x + 28, hero.y + 48);
-        ctx.font = "700 56px Cinzel";
-        ctx.fillText("Frontier", hero.x + 28, hero.y + 112);
-        ctx.fillText("Defenders", hero.x + 28, hero.y + 166);
-        ctx.fillStyle = "rgba(228, 236, 248, 0.78)";
+        ctx.fillText("DARK FANTASY TOWER DEFENSE", hero.x + 30, hero.y + 48);
+        ctx.font = "700 58px Cinzel";
+        ctx.fillText("Frontier", hero.x + 30, hero.y + 118);
+        ctx.fillText("Defenders", hero.x + 30, hero.y + 172);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.8)";
         ctx.font = "500 18px Inter";
-        ctx.fillText("Hold the line with sharp tower builds,", hero.x + 28, hero.y + 208);
-        ctx.fillText("clean placement choices, and disciplined upgrades.", hero.x + 28, hero.y + 234);
+        ctx.fillText("Hold ancient roads, layer your defenses,", hero.x + 30, hero.y + 214);
+        ctx.fillText("and survive each wave with cleaner tactical control.", hero.x + 30, hero.y + 240);
         ctx.restore();
 
-        this.ui.drawButton(ctx, buttons.start, campaignLabel, {
+        this.ui.drawButton(ctx, buttons.start, "Play", {
             hovered: this.hoveredId === "start",
             active: true,
             radius: 18,
@@ -150,68 +134,81 @@ export default class MainMenuScene {
             radius: 18,
             font: "700 16px Inter"
         });
+        this.ui.drawButton(ctx, buttons.settings, "Settings", {
+            hovered: this.hoveredId === "settings",
+            radius: 18,
+            font: "700 16px Inter"
+        });
 
         ctx.save();
         ctx.font = "600 13px Inter";
-        this.ui.drawPill(ctx, featurePills[0].x, featurePills[0].y, `${levelsUnlocked}/${this.totalLevels} levels unlocked`, {
+        this.ui.drawPill(ctx, featurePills[0].x, featurePills[0].y, "Responsive fit", {
             minWidth: featurePills[0].width,
             height: featurePills[0].height,
             active: true
         });
-        this.ui.drawPill(ctx, featurePills[1].x, featurePills[1].y, `Current front: ${currentFront}`, {
+        this.ui.drawPill(ctx, featurePills[1].x, featurePills[1].y, "Dark fantasy palette", {
             minWidth: featurePills[1].width,
             height: featurePills[1].height
         });
-        this.ui.drawPill(ctx, featurePills[2].x, featurePills[2].y, "Progress saved locally", {
+        this.ui.drawPill(ctx, featurePills[2].x, featurePills[2].y, "Cleaner menu flow", {
             minWidth: featurePills[2].width,
             height: featurePills[2].height
         });
         ctx.restore();
 
-        this.ui.drawPanel(ctx, featurePanel.x, featurePanel.y, featurePanel.width, featurePanel.height, {
+        this.ui.drawPanel(ctx, statusPanel.x, statusPanel.y, statusPanel.width, statusPanel.height, {
             radius: 24,
-            fill: "rgba(10, 17, 29, 0.9)",
-            border: "rgba(255,255,255,0.1)",
-            glow: "rgba(127, 179, 255, 0.08)"
+            fill: "rgba(16, 12, 20, 0.92)",
+            border: "rgba(255,232,196,0.12)",
+            glow: "rgba(215, 176, 109, 0.07)"
         });
 
         ctx.save();
-        ctx.fillStyle = "#f8fbff";
+        ctx.fillStyle = "#f8f4eb";
         ctx.font = "700 15px Inter";
-        ctx.fillText("Current Build Highlights", featurePanel.x + 20, featurePanel.y + 34);
-        ctx.fillStyle = "rgba(228, 236, 248, 0.76)";
+        ctx.fillText("Presentation Pass", statusPanel.x + 20, statusPanel.y + 34);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.78)";
         ctx.font = "500 14px Inter";
-        ctx.fillText("5 tower classes with branching upgrades", featurePanel.x + 20, featurePanel.y + 74);
-        ctx.fillText("Status effects, splash hits, and combat feedback", featurePanel.x + 20, featurePanel.y + 104);
-        ctx.fillText("Three handcrafted battlefields and custom wave sets", featurePanel.x + 20, featurePanel.y + 134);
-        ctx.fillText("Campaign progress now persists between sessions", featurePanel.x + 20, featurePanel.y + 164);
+        ctx.fillText("Main menu now has Play, Level Select, and Settings.", statusPanel.x + 20, statusPanel.y + 72);
+        ctx.fillText("The palette and framing now push toward dark fantasy.", statusPanel.x + 20, statusPanel.y + 102);
+        ctx.fillText("Responsive scaling remains centered and intentional on any screen.", statusPanel.x + 20, statusPanel.y + 132);
+        ctx.restore();
+
+        this.ui.drawPanel(ctx, featurePanel.x, featurePanel.y, featurePanel.width, featurePanel.height, {
+            radius: 24,
+            fill: "rgba(14, 11, 18, 0.9)",
+            border: "rgba(255,232,196,0.1)",
+            glow: "rgba(141, 167, 255, 0.08)"
+        });
+
+        ctx.save();
+        ctx.fillStyle = "#f8f4eb";
+        ctx.font = "700 15px Inter";
+        ctx.fillText("What Feels Better Now", featurePanel.x + 20, featurePanel.y + 34);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.76)";
+        ctx.font = "500 14px Inter";
+        ctx.fillText("Clearer hierarchy between title, actions, and supporting info", featurePanel.x + 20, featurePanel.y + 72);
+        ctx.fillText("Rounded panels and warmer accents replace the older flat look", featurePanel.x + 20, featurePanel.y + 102);
+        ctx.fillText("Menu navigation now reads more like a finished game shell", featurePanel.x + 20, featurePanel.y + 132);
         ctx.restore();
 
         this.ui.drawPanel(ctx, infoPanel.x, infoPanel.y, infoPanel.width, infoPanel.height, {
             radius: 24,
-            fill: "rgba(9, 15, 26, 0.9)",
-            border: "rgba(255,255,255,0.1)",
-            glow: "rgba(126, 240, 194, 0.08)"
+            fill: "rgba(12, 10, 16, 0.9)",
+            border: "rgba(255,232,196,0.1)",
+            glow: "rgba(126, 215, 178, 0.07)"
         });
 
         ctx.save();
-        ctx.fillStyle = "#f8fbff";
+        ctx.fillStyle = "#f8f4eb";
         ctx.font = "700 15px Inter";
-        ctx.fillText("Command Brief", infoPanel.x + 20, infoPanel.y + 34);
-        ctx.fillStyle = "rgba(228, 236, 248, 0.76)";
+        ctx.fillText("Battle Readiness", infoPanel.x + 20, infoPanel.y + 34);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.76)";
         ctx.font = "500 14px Inter";
-        ctx.fillText("Choose a battlefield, build inside marked circles,", infoPanel.x + 20, infoPanel.y + 74);
-        ctx.fillText("and keep enemies from reaching the end of the road.", infoPanel.x + 20, infoPanel.y + 98);
-        ctx.fillText("Gold funds new towers and upgrades. Lost lives end the run.", infoPanel.x + 20, infoPanel.y + 134);
-        ctx.fillText("Victories unlock the next front and save your progress locally.", infoPanel.x + 20, infoPanel.y + 158);
+        ctx.fillText("Choose a battlefield, place towers in valid zones, and stop the push.", infoPanel.x + 20, infoPanel.y + 74);
+        ctx.fillText("Use Settings to control volume before a run starts.", infoPanel.x + 20, infoPanel.y + 104);
+        ctx.fillText("Next passes can now focus on feedback, clarity, and progression.", infoPanel.x + 20, infoPanel.y + 134);
         ctx.restore();
-
-        if (this.introFade > 0) {
-            ctx.save();
-            ctx.globalAlpha = this.introFade;
-            ctx.fillStyle = '#04070d';
-            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            ctx.restore();
-        }
     }
 }

@@ -9,8 +9,9 @@ canvas.height = DESIGN_HEIGHT;
 canvas.style.touchAction = "none";
 
 function resizeCanvasDisplay() {
-    const viewportWidth = Math.max(window.innerWidth - 32, 320);
-    const viewportHeight = Math.max(window.innerHeight - 32, 240);
+    const shellPadding = window.innerWidth <= 900 ? 24 : 36;
+    const viewportWidth = Math.max(window.innerWidth - shellPadding, 320);
+    const viewportHeight = Math.max(window.innerHeight - shellPadding, 240);
     const aspectRatio = DESIGN_WIDTH / DESIGN_HEIGHT;
 
     let displayWidth = viewportWidth;

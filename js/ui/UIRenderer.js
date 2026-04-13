@@ -1,59 +1,72 @@
 import { UI_THEME } from "../config.js";
 
 export default class UIRenderer {
-    constructor(canvas, theme = UI_THEME) {
+    constructor(canvas) {
         this.canvas = canvas;
-        this.theme = theme;
+        this.theme = UI_THEME;
     }
 
     getPointerPosition(event) {
-        const rect = this.canvas.getBoundingClientRect();
+        const bounds = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / bounds.width;
+        const scaleY = this.canvas.height / bounds.height;
+
         return {
-            x: (event.clientX - rect.left) * (this.canvas.width / rect.width),
-            y: (event.clientY - rect.top) * (this.canvas.height / rect.height)
+            x: (event.clientX - bounds.left) * scaleX,
+            y: (event.clientY - bounds.top) * scaleY
         };
     }
 
     getMainMenuLayout() {
         const { width, height } = this.canvas;
         const frame = {
-            x: 54,
-            y: 46,
-            width: width - 108,
-            height: height - 92
+            x: 28,
+            y: 26,
+            width: width - 56,
+            height: height - 52
         };
         const hero = {
-            x: frame.x + 34,
-            y: frame.y + 34,
-            width: 456,
-            height: frame.height - 68
+            x: frame.x + 26,
+            y: frame.y + 28,
+            width: Math.floor(frame.width * 0.56),
+            height: frame.height - 56
+        };
+        const sideX = hero.x + hero.width + 22;
+        const sideWidth = frame.x + frame.width - sideX - 24;
+        const statusPanel = {
+            x: sideX,
+            y: hero.y,
+            width: sideWidth,
+            height: 182
         };
         const featurePanel = {
-            x: hero.x + hero.width + 24,
-            y: hero.y,
-            width: frame.x + frame.width - (hero.x + hero.width + 24) - 34,
-            height: 204
+            x: sideX,
+            y: statusPanel.y + statusPanel.height + 18,
+            width: sideWidth,
+            height: 154
         };
         const infoPanel = {
-            x: featurePanel.x,
-            y: featurePanel.y + featurePanel.height + 22,
-            width: featurePanel.width,
-            height: hero.height - featurePanel.height - 22
+            x: sideX,
+            y: featurePanel.y + featurePanel.height + 18,
+            width: sideWidth,
+            height: hero.height - statusPanel.height - featurePanel.height - 36
         };
 
         return {
             frame,
             hero,
+            statusPanel,
             featurePanel,
             infoPanel,
             buttons: {
-                start: { x: hero.x, y: hero.y + 226, width: 208, height: 56 },
-                levels: { x: hero.x + 224, y: hero.y + 226, width: 182, height: 56 }
+                start: { x: hero.x, y: hero.y + 250, width: 190, height: 56 },
+                levels: { x: hero.x + 206, y: hero.y + 250, width: 176, height: 56 },
+                settings: { x: hero.x + 398, y: hero.y + 250, width: 160, height: 56 }
             },
             featurePills: [
-                { x: hero.x, y: hero.y + 308, width: 150, height: 34 },
-                { x: hero.x + 164, y: hero.y + 308, width: 176, height: 34 },
-                { x: hero.x, y: hero.y + 354, width: 196, height: 34 }
+                { x: hero.x, y: hero.y + 324, width: 152, height: 34 },
+                { x: hero.x + 164, y: hero.y + 324, width: 158, height: 34 },
+                { x: hero.x + 334, y: hero.y + 324, width: 176, height: 34 }
             ]
         };
     }
@@ -61,21 +74,21 @@ export default class UIRenderer {
     getLevelSelectLayout(cardCount) {
         const { width, height } = this.canvas;
         const frame = {
-            x: 38,
-            y: 32,
-            width: width - 76,
-            height: height - 64
+            x: 34,
+            y: 28,
+            width: width - 68,
+            height: height - 56
         };
         const header = {
             x: frame.x + 22,
             y: frame.y + 22,
             width: frame.width - 44,
-            height: 82
+            height: 92
         };
-        const contentY = header.y + header.height + 22;
-        const gap = 18;
+        const contentY = header.y + header.height + 18;
+        const gap = 16;
         const cardWidth = Math.floor((frame.width - 44 - gap * (cardCount - 1)) / cardCount);
-        const cardHeight = frame.height - (contentY - frame.y) - 28;
+        const cardHeight = frame.height - (contentY - frame.y) - 26;
         const cards = Array.from({ length: cardCount }, (_, index) => ({
             x: frame.x + 22 + index * (cardWidth + gap),
             y: contentY,
@@ -88,6 +101,37 @@ export default class UIRenderer {
             header,
             cards,
             backButton: { x: frame.x + 22, y: frame.y + 20, width: 120, height: 44 }
+        };
+    }
+
+    getSettingsLayout() {
+        const { width, height } = this.canvas;
+        const frame = {
+            x: 140,
+            y: 52,
+            width: width - 280,
+            height: height - 104
+        };
+        const header = {
+            x: frame.x + 24,
+            y: frame.y + 22,
+            width: frame.width - 48,
+            height: 96
+        };
+        const cards = {
+            audio: { x: frame.x + 24, y: header.y + header.height + 18, width: frame.width - 48, height: 116 },
+            display: { x: frame.x + 24, y: header.y + header.height + 150, width: frame.width - 48, height: 108 },
+            style: { x: frame.x + 24, y: header.y + header.height + 274, width: frame.width - 48, height: 94 }
+        };
+
+        return {
+            frame,
+            header,
+            cards,
+            buttons: {
+                volume: { x: cards.audio.x + cards.audio.width - 176, y: cards.audio.y + 34, width: 146, height: 46 },
+                back: { x: frame.x + frame.width - 152, y: frame.y + frame.height - 68, width: 128, height: 46 }
+            }
         };
     }
 
@@ -162,12 +206,14 @@ export default class UIRenderer {
 
     drawBackdrop(ctx, palette = {}) {
         const { width, height } = this.canvas;
-        const top = palette.top ?? "#101828";
-        const bottom = palette.bottom ?? "#060b14";
-        const accent = palette.accent ?? "rgba(96, 165, 250, 0.18)";
+        const top = palette.top ?? "#16111c";
+        const bottom = palette.bottom ?? "#07060b";
+        const accent = palette.accent ?? "rgba(215, 176, 109, 0.13)";
+        const accentTwo = palette.accentTwo ?? "rgba(141, 167, 255, 0.1)";
 
         const gradient = ctx.createLinearGradient(0, 0, 0, height);
         gradient.addColorStop(0, top);
+        gradient.addColorStop(0.52, "#140f18");
         gradient.addColorStop(1, bottom);
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
@@ -175,15 +221,20 @@ export default class UIRenderer {
         ctx.save();
         ctx.fillStyle = accent;
         ctx.beginPath();
-        ctx.arc(width * 0.16, height * 0.14, 180, 0, Math.PI * 2);
+        ctx.arc(width * 0.16, height * 0.16, 190, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = accentTwo;
         ctx.beginPath();
-        ctx.arc(width * 0.86, height * 0.84, 230, 0, Math.PI * 2);
+        ctx.arc(width * 0.82, height * 0.24, 140, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(126, 215, 178, 0.08)";
+        ctx.beginPath();
+        ctx.arc(width * 0.84, height * 0.84, 220, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
         ctx.save();
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
+        ctx.strokeStyle = "rgba(255, 244, 225, 0.03)";
         ctx.lineWidth = 1;
         for (let x = 0; x <= width; x += 32) {
             ctx.beginPath();
@@ -204,7 +255,7 @@ export default class UIRenderer {
         const radius = options.radius ?? 20;
         const fill = options.fill ?? this.theme.colors.panel;
         const border = options.border ?? this.theme.colors.border;
-        const glow = options.glow ?? "rgba(96, 165, 250, 0.12)";
+        const glow = options.glow ?? "rgba(215, 176, 109, 0.1)";
 
         ctx.save();
         ctx.shadowColor = glow;
@@ -223,31 +274,38 @@ export default class UIRenderer {
         const hovered = Boolean(options.hovered);
         const active = Boolean(options.active);
         const disabled = Boolean(options.disabled);
+        const danger = Boolean(options.danger);
         const radius = options.radius ?? 16;
         const fill = disabled
-            ? "rgba(88, 96, 116, 0.42)"
-            : active
-                ? "rgba(224, 180, 74, 0.92)"
-                : hovered
-                    ? "rgba(67, 114, 212, 0.96)"
-                    : "rgba(20, 30, 50, 0.9)";
+            ? "rgba(88, 76, 76, 0.38)"
+            : danger
+                ? hovered
+                    ? "rgba(143, 67, 80, 0.96)"
+                    : "rgba(108, 46, 58, 0.92)"
+                : active
+                    ? "rgba(215, 176, 109, 0.94)"
+                    : hovered
+                        ? "rgba(78, 63, 113, 0.98)"
+                        : "rgba(28, 22, 37, 0.92)";
         const border = disabled
             ? "rgba(255, 255, 255, 0.08)"
-            : active
-                ? "rgba(255, 235, 177, 0.95)"
-                : hovered
-                    ? "rgba(181, 215, 255, 0.95)"
-                    : "rgba(255, 255, 255, 0.12)";
+            : danger
+                ? "rgba(233, 168, 177, 0.65)"
+                : active
+                    ? "rgba(255, 236, 190, 0.92)"
+                    : hovered
+                        ? "rgba(189, 171, 245, 0.78)"
+                        : "rgba(255, 232, 196, 0.14)";
 
         this.drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, {
             radius,
             fill,
             border,
-            glow: hovered || active ? "rgba(96, 165, 250, 0.18)" : "rgba(0, 0, 0, 0)"
+            glow: hovered || active || danger ? "rgba(215, 176, 109, 0.18)" : "rgba(0, 0, 0, 0)"
         });
 
         ctx.save();
-        ctx.fillStyle = disabled ? "rgba(235, 239, 245, 0.55)" : active ? "#1a1300" : "#f5f8ff";
+        ctx.fillStyle = disabled ? "rgba(235, 239, 245, 0.55)" : active ? "#1d1402" : "#f8f4eb";
         ctx.font = options.font ?? "600 15px Inter";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -285,8 +343,8 @@ export default class UIRenderer {
         ctx.save();
         this.roundRect(ctx, rect.x, rect.y, fillWidth, rect.height, radius);
         const gradient = ctx.createLinearGradient(rect.x, rect.y, rect.x + rect.width, rect.y);
-        gradient.addColorStop(0, options.start ?? "#7ef0c2");
-        gradient.addColorStop(1, options.end ?? "#7fb3ff");
+        gradient.addColorStop(0, options.start ?? "#7ed7b2");
+        gradient.addColorStop(1, options.end ?? "#d7b06d");
         ctx.fillStyle = gradient;
         ctx.fill();
         ctx.restore();
@@ -304,12 +362,12 @@ export default class UIRenderer {
 
         this.drawPanel(ctx, tooltipX, tooltipY, width, height, {
             radius: 14,
-            fill: "rgba(8, 12, 20, 0.94)",
-            border: "rgba(255,255,255,0.14)",
+            fill: "rgba(10, 8, 14, 0.95)",
+            border: "rgba(255, 232, 196, 0.15)",
             glow: "rgba(15, 23, 42, 0.55)"
         });
 
-        ctx.fillStyle = "#edf3ff";
+        ctx.fillStyle = "#f8f1e5";
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         lines.forEach((line, index) => {
@@ -320,8 +378,8 @@ export default class UIRenderer {
 
     drawRangeRing(ctx, x, y, range, options = {}) {
         ctx.save();
-        ctx.fillStyle = options.fill ?? "rgba(96, 165, 250, 0.12)";
-        ctx.strokeStyle = options.stroke ?? "rgba(191, 219, 254, 0.6)";
+        ctx.fillStyle = options.fill ?? "rgba(141, 167, 255, 0.12)";
+        ctx.strokeStyle = options.stroke ?? "rgba(215, 176, 109, 0.6)";
         ctx.lineWidth = options.lineWidth ?? 2;
         ctx.beginPath();
         ctx.arc(x, y, range, 0, Math.PI * 2);

@@ -1,7 +1,6 @@
 import GameScene from "./GameScene.js";
 import MainMenuScene from "./MainMenuScene.js";
 import UIRenderer from "../ui/UIRenderer.js";
-import SaveSystem from "../systems/SaveSystem.js";
 
 export default class LevelSelectScene {
     constructor(canvas, sceneManager, soundManager) {
@@ -18,7 +17,7 @@ export default class LevelSelectScene {
                 subtitle: "Balanced route with open sight lines",
                 terrain: "Steady pacing",
                 waves: "Good for learning timings",
-                accent: "#6ee7b7"
+                accent: "#7ed7b2"
             },
             {
                 id: 1,
@@ -26,7 +25,7 @@ export default class LevelSelectScene {
                 subtitle: "Compressed turns and denser pressure",
                 terrain: "Mid-lane bends",
                 waves: "Punishes weak coverage",
-                accent: "#93c5fd"
+                accent: "#8da7ff"
             },
             {
                 id: 2,
@@ -34,21 +33,18 @@ export default class LevelSelectScene {
                 subtitle: "Harsh route with punishing late lanes",
                 terrain: "Tight checkpoints",
                 waves: "High damage race",
-                accent: "#fca5a5"
+                accent: "#d97878"
             }
         ];
 
         this.hoveredId = null;
-        this.time = 0;
-        this.introFade = 1;
-        this.highestUnlockedLevel = SaveSystem.getHighestUnlockedLevel();
         this.handleClick = this.handleClick.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
     }
 
     onEnter() {
-        this.highestUnlockedLevel = SaveSystem.getHighestUnlockedLevel();
         this.refreshLayout();
+        this.soundManager.startMenuMusic();
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
     }
@@ -61,10 +57,6 @@ export default class LevelSelectScene {
 
     refreshLayout() {
         this.layout = this.ui.getLevelSelectLayout(this.levelButtons.length);
-    }
-
-    isLevelUnlocked(levelId) {
-        return levelId <= this.highestUnlockedLevel;
     }
 
     getHoveredButton(x, y) {
@@ -95,16 +87,11 @@ export default class LevelSelectScene {
             return;
         }
 
-        for (const button of this.levelButtons) {
-            if (hovered === `level-${button.id}`) {
-                if (!this.isLevelUnlocked(button.id)) {
-                    this.soundManager.playClick();
-                    return;
-                }
-
+        for (const level of this.levelButtons) {
+            if (hovered === `level-${level.id}`) {
                 this.soundManager.playConfirm();
                 const gameScene = new GameScene(this.canvas, this.sceneManager, this.soundManager);
-                gameScene.loadLevel(button.id);
+                gameScene.loadLevel(level.id);
                 this.sceneManager.changeScene(gameScene);
                 return;
             }
@@ -114,141 +101,98 @@ export default class LevelSelectScene {
     handleMouseMove(event) {
         this.refreshLayout();
         const { x, y } = this.ui.getPointerPosition(event);
-        const hovered = this.getHoveredButton(x, y);
-
-        if (hovered?.startsWith("level-")) {
-            const levelId = Number.parseInt(hovered.replace("level-", ""), 10);
-            this.hoveredId = hovered;
-            this.canvas.style.cursor = this.isLevelUnlocked(levelId) ? "pointer" : "not-allowed";
-            return;
-        }
-
-        this.hoveredId = hovered;
+        this.hoveredId = this.getHoveredButton(x, y);
         this.canvas.style.cursor = this.hoveredId ? "pointer" : "default";
     }
 
-    update(dt = 0) {
-        this.time += dt;
-        this.introFade = Math.max(0, this.introFade - dt * 1.5);
-    }
+    update() {}
 
     render(ctx) {
         this.refreshLayout();
         const { frame, header, cards, backButton } = this.layout;
 
         this.ui.drawBackdrop(ctx, {
-            top: "#0b1425",
-            bottom: "#05080f",
-            accent: "rgba(127, 179, 255, 0.16)"
+            top: "#110d16",
+            bottom: "#050409",
+            accent: "rgba(215, 176, 109, 0.12)",
+            accentTwo: "rgba(141, 167, 255, 0.08)"
         });
 
         this.ui.drawPanel(ctx, frame.x, frame.y, frame.width, frame.height, {
             radius: 30,
-            fill: "rgba(7, 12, 22, 0.8)",
-            border: "rgba(255,255,255,0.1)",
-            glow: "rgba(96, 165, 250, 0.1)"
+            fill: "rgba(9, 7, 12, 0.8)",
+            border: "rgba(255, 232, 196, 0.1)",
+            glow: "rgba(215, 176, 109, 0.08)"
+        });
+
+        this.ui.drawPanel(ctx, header.x, header.y, header.width, header.height, {
+            radius: 24,
+            fill: "rgba(17, 13, 21, 0.92)",
+            border: "rgba(255,232,196,0.12)",
+            glow: "rgba(141, 167, 255, 0.06)"
         });
 
         this.ui.drawButton(ctx, backButton, "Main Menu", {
             hovered: this.hoveredId === "back",
-            radius: 16,
-            font: "600 14px Inter"
+            radius: 14,
+            font: "700 15px Inter"
         });
 
         ctx.save();
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 38px Cinzel";
-        ctx.fillText("Choose Your Front", header.x + header.width / 2, header.y + 34);
-        ctx.fillStyle = "rgba(228, 236, 248, 0.74)";
-        ctx.font = "500 16px Inter";
-        ctx.fillText("Unlocked fronts persist between sessions. Win to open the next battlefield.", header.x + header.width / 2, header.y + 62);
+        ctx.fillStyle = "#f8f4eb";
+        ctx.font = "700 34px Cinzel";
+        ctx.fillText("Select Your Battlefield", header.x + 24, header.y + 42);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.76)";
+        ctx.font = "500 15px Inter";
+        ctx.fillText("Three handcrafted maps with different pressure patterns and pacing.", header.x + 24, header.y + 72);
         ctx.restore();
 
-        this.levelButtons.forEach((button, index) => {
-            const card = cards[index];
-            const unlocked = this.isLevelUnlocked(button.id);
-            const hovered = this.hoveredId === `level-${button.id}`;
-            const interactiveHover = hovered && unlocked;
+        cards.forEach((card, index) => {
+            const level = this.levelButtons[index];
+            const hovered = this.hoveredId === `level-${level.id}`;
 
             this.ui.drawPanel(ctx, card.x, card.y, card.width, card.height, {
-                radius: 26,
-                fill: interactiveHover ? "rgba(13, 22, 37, 0.96)" : "rgba(10, 17, 29, 0.9)",
-                border: interactiveHover ? "rgba(191, 219, 254, 0.32)" : "rgba(255, 255, 255, 0.1)",
-                glow: interactiveHover ? "rgba(96, 165, 250, 0.22)" : "rgba(0,0,0,0)"
+                radius: 24,
+                fill: hovered ? "rgba(27, 21, 34, 0.96)" : "rgba(16, 12, 20, 0.92)",
+                border: hovered ? "rgba(255, 232, 196, 0.26)" : "rgba(255,232,196,0.12)",
+                glow: hovered ? "rgba(215, 176, 109, 0.14)" : "rgba(0,0,0,0)"
             });
 
             ctx.save();
-            const floatY = Math.sin(this.time * 1.1 + index * 0.85) * 7;
-            ctx.fillStyle = unlocked ? `${button.accent}26` : "rgba(148, 163, 184, 0.14)";
+            ctx.fillStyle = level.accent;
             ctx.beginPath();
-            ctx.arc(card.x + card.width - 48, card.y + 42 + floatY, 44, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = unlocked ? button.accent : "rgba(148, 163, 184, 0.7)";
-            ctx.beginPath();
-            ctx.arc(card.x + 36, card.y + 40, 10, 0, Math.PI * 2);
+            ctx.arc(card.x + card.width - 42, card.y + 42, 14, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
 
             ctx.save();
-            ctx.fillStyle = "#f8fbff";
-            ctx.font = "700 23px Cinzel";
-            ctx.fillText(button.label, card.x + 26, card.y + 60);
-            ctx.fillStyle = unlocked ? "rgba(228, 236, 248, 0.78)" : "rgba(180, 190, 204, 0.58)";
+            ctx.fillStyle = "#f8f4eb";
+            ctx.font = "700 24px Cinzel";
+            ctx.fillText(level.label, card.x + 20, card.y + 44);
+            ctx.fillStyle = "rgba(232, 222, 205, 0.78)";
             ctx.font = "500 14px Inter";
-            ctx.fillText(button.subtitle, card.x + 26, card.y + 92);
-            ctx.fillStyle = unlocked ? "rgba(194, 206, 223, 0.72)" : "rgba(148, 163, 184, 0.56)";
-            ctx.fillText(button.terrain, card.x + 26, card.y + 148);
-            ctx.fillText(button.waves, card.x + 26, card.y + 174);
-            ctx.restore();
+            ctx.fillText(level.subtitle, card.x + 20, card.y + 74);
 
-            ctx.save();
-            ctx.font = "600 12px Inter";
-            this.ui.drawPill(ctx, card.x + 26, card.y + 208, `Level ${index + 1}`, {
-                minWidth: 82,
-                height: 30,
-                active: interactiveHover
-            });
-            this.ui.drawPill(ctx, card.x + 118, card.y + 208, unlocked ? (index === 0 ? "Available" : "Unlocked") : "Locked", {
-                minWidth: 94,
-                height: 30,
-                active: interactiveHover
-            });
-            ctx.restore();
+            ctx.fillStyle = "rgba(215, 176, 109, 0.9)";
+            ctx.font = "700 12px Inter";
+            ctx.fillText("MAP NOTES", card.x + 20, card.y + 116);
+            ctx.fillStyle = "rgba(232, 222, 205, 0.74)";
+            ctx.font = "500 14px Inter";
+            ctx.fillText(level.terrain, card.x + 20, card.y + 144);
+            ctx.fillText(level.waves, card.x + 20, card.y + 170);
 
             this.ui.drawButton(ctx, {
-                x: card.x + 22,
-                y: card.y + card.height - 60,
-                width: card.width - 44,
-                height: 42
-            }, unlocked ? "Deploy Here" : "Locked", {
-                hovered: interactiveHover,
-                active: interactiveHover,
-                disabled: !unlocked,
+                x: card.x + 20,
+                y: card.y + card.height - 72,
+                width: card.width - 40,
+                height: 46
+            }, "Deploy", {
+                hovered,
+                active: hovered,
                 radius: 16,
-                font: "700 14px Inter"
+                font: "700 15px Inter"
             });
-
-            if (!unlocked) {
-                ctx.save();
-                ctx.fillStyle = "rgba(4, 7, 13, 0.46)";
-                ctx.fillRect(card.x, card.y, card.width, card.height);
-                ctx.fillStyle = "rgba(238, 244, 255, 0.88)";
-                ctx.font = "700 42px Inter";
-                ctx.textAlign = "center";
-                ctx.fillText("🔒", card.x + card.width / 2, card.y + card.height / 2 - 6);
-                ctx.font = "600 13px Inter";
-                ctx.fillText("Win the previous front to unlock", card.x + card.width / 2, card.y + card.height / 2 + 26);
-                ctx.restore();
-            }
-        });
-
-        if (this.introFade > 0) {
-            ctx.save();
-            ctx.globalAlpha = this.introFade;
-            ctx.fillStyle = "#04070d";
-            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             ctx.restore();
-        }
+        });
     }
 }
