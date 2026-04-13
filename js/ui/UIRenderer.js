@@ -8,13 +8,26 @@ export default class UIRenderer {
 
     getPointerPosition(event) {
         const rect = this.canvas.getBoundingClientRect();
-        const source = event.touches?.[0] ?? event.changedTouches?.[0] ?? event;
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
+        const width = rect.width || this.canvas.clientWidth || this.canvas.width;
+        const height = rect.height || this.canvas.clientHeight || this.canvas.height;
+
+        let localX;
+        let localY;
+
+        if (typeof event.offsetX === "number" && typeof event.offsetY === "number" && event.target === this.canvas) {
+            localX = event.offsetX;
+            localY = event.offsetY;
+        } else {
+            localX = event.clientX - rect.left;
+            localY = event.clientY - rect.top;
+        }
+
+        const scaleX = this.canvas.width / width;
+        const scaleY = this.canvas.height / height;
 
         return {
-            x: (source.clientX - rect.left) * scaleX,
-            y: (source.clientY - rect.top) * scaleY
+            x: Math.max(0, Math.min(this.canvas.width, localX * scaleX)),
+            y: Math.max(0, Math.min(this.canvas.height, localY * scaleY))
         };
     }
 
