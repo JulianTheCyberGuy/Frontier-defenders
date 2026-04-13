@@ -1,12 +1,14 @@
 import Game from "./engine/Game.js";
-import GameScene from "./scenes/GameScene.js";
+import SceneManager from "./engine/SceneManager.js";
+import MainMenuScene from "./scenes/MainMenuScene.js";
 
 const canvas = document.getElementById("gameCanvas");
 canvas.width = 960;
 canvas.height = 540;
 
-const scene = new GameScene(canvas);
 const game = new Game(canvas);
+const sceneManager = game.sceneManager;
 
-game.sceneManager.changeScene(scene);
+sceneManager.changeScene(new MainMenuScene(canvas, sceneManager));
+
 game.start();

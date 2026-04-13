@@ -1,7 +1,17 @@
-
 export default class SceneManager {
-constructor(){this.scene=null;}
-changeScene(s){this.scene=s;}
-update(dt){this.scene?.update(dt);}
-render(ctx){this.scene?.render(ctx);}
+    constructor() {
+        this.currentScene = null;
+    }
+
+    changeScene(scene) {
+        this.currentScene = scene;
+    }
+
+    update(dt) {
+        this.currentScene?.update(dt);
+    }
+
+    render(ctx) {
+        this.currentScene?.render(ctx);
+    }
 }

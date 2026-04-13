@@ -5,8 +5,8 @@ import level1 from "../levels/level1.js";
 import level2 from "../levels/level2.js";
 
 export default class GameScene {
-    constructor(canvas) {
-        this.canvas = canvas;
+    constructor(canvas, sceneManager) {
+        this.sceneManager = sceneManager;
 
         this.levels = [
             {
