@@ -1,9 +1,10 @@
 import LevelSelectScene from "./LevelSelectScene.js";
 
 export default class MainMenuScene {
-    constructor(canvas, sceneManager) {
+    constructor(canvas, sceneManager, soundManager) {
         this.canvas = canvas;
         this.sceneManager = sceneManager;
+        this.soundManager = soundManager;
 
         this.button = {
             x: 380,
@@ -12,7 +13,29 @@ export default class MainMenuScene {
             height: 60
         };
 
-        canvas.addEventListener("click", this.handleClick.bind(this));
+        this.hovered = false;
+
+        this.handleClick = this.handleClick.bind(this);
+        this.handleMouseMove = this.handleMouseMove.bind(this);
+    }
+
+    onEnter() {
+        this.canvas.addEventListener("click", this.handleClick);
+        this.canvas.addEventListener("mousemove", this.handleMouseMove);
+    }
+
+    onExit() {
+        this.canvas.removeEventListener("click", this.handleClick);
+        this.canvas.removeEventListener("mousemove", this.handleMouseMove);
+    }
+
+    isInsideButton(x, y) {
+        return (
+            x >= this.button.x &&
+            x <= this.button.x + this.button.width &&
+            y >= this.button.y &&
+            y <= this.button.y + this.button.height
+        );
     }
 
     handleClick(e) {
@@ -20,16 +43,21 @@ export default class MainMenuScene {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        if (
-            x >= this.button.x &&
-            x <= this.button.x + this.button.width &&
-            y >= this.button.y &&
-            y <= this.button.y + this.button.height
-        ) {
+        if (this.isInsideButton(x, y)) {
+            this.soundManager.playConfirm();
             this.sceneManager.changeScene(
-                new LevelSelectScene(this.canvas, this.sceneManager)
+                new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager)
             );
         }
+    }
+
+    handleMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        this.hovered = this.isInsideButton(x, y);
+        this.canvas.style.cursor = this.hovered ? "pointer" : "default";
     }
 
     update() {}
@@ -42,8 +70,12 @@ export default class MainMenuScene {
         ctx.font = "48px Arial";
         ctx.fillText("Frontier Defenders", 220, 150);
 
-        ctx.fillStyle = "#2c6e49";
+        ctx.fillStyle = this.hovered ? "#3f8a5f" : "#2c6e49";
         ctx.fillRect(this.button.x, this.button.y, this.button.width, this.button.height);
+
+        ctx.strokeStyle = this.hovered ? "#d9f5e5" : "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.button.x, this.button.y, this.button.width, this.button.height);
 
         ctx.fillStyle = "white";
         ctx.font = "24px Arial";

@@ -4,7 +4,15 @@ export default class SceneManager {
     }
 
     changeScene(scene) {
+        if (this.currentScene?.onExit) {
+            this.currentScene.onExit();
+        }
+
         this.currentScene = scene;
+
+        if (this.currentScene?.onEnter) {
+            this.currentScene.onEnter();
+        }
     }
 
     update(dt) {

@@ -3,14 +3,18 @@ import Tower from "../core/Tower.js";
 import Projectile from "../core/Projectile.js";
 import level1 from "../levels/level1.js";
 import level2 from "../levels/level2.js";
+import MainMenuScene from "./MainMenuScene.js";
+import LevelSelectScene from "./LevelSelectScene.js";
 
 export default class GameScene {
-    constructor(canvas, sceneManager) {
+    constructor(canvas, sceneManager, soundManager) {
+        this.canvas = canvas;
         this.sceneManager = sceneManager;
+        this.soundManager = soundManager;
 
         this.levels = [
             {
-                id: 1,
+                id: 0,
                 name: "Forest Road",
                 data: level1,
                 waves: [
@@ -20,7 +24,7 @@ export default class GameScene {
                 ]
             },
             {
-                id: 2,
+                id: 1,
                 name: "Ruined Keep",
                 data: level2,
                 waves: [
@@ -72,70 +76,31 @@ export default class GameScene {
             { x: 700, y: 112, width: 220, height: 34, id: "right" }
         ];
 
+        this.overlayButtons = {
+            restart: { x: 320, y: 290, width: 140, height: 48 },
+            levels: { x: 480, y: 290, width: 160, height: 48 },
+            menu: { x: 380, y: 350, width: 200, height: 48 }
+        };
+
         this.selectedType = "archer";
         this.selectedTower = null;
+        this.hoveredId = null;
+        this.currentLevelIndex = 0;
 
-        this.bindEvents();
-        this.loadLevel(0);
+        this.handleClick = this.handleClick.bind(this);
+        this.handleMouseMove = this.handleMouseMove.bind(this);
     }
 
-    bindEvents() {
-        this.canvas.addEventListener("click", (e) => {
-            const r = this.canvas.getBoundingClientRect();
-            const x = e.clientX - r.left;
-            const y = e.clientY - r.top;
+    onEnter() {
+        this.canvas.addEventListener("click", this.handleClick);
+        this.canvas.addEventListener("mousemove", this.handleMouseMove);
+        this.canvas.style.cursor = "default";
+    }
 
-            if (y < 40) {
-                const index = Math.floor(x / 120);
-                if (this.buttons[index]) {
-                    this.selectedType = this.buttons[index];
-                    return;
-                }
-            }
-
-            if (this.selectedTower) {
-                const choices = this.selectedTower.getUpgradeChoices();
-
-                for (let i = 0; i < choices.length; i++) {
-                    const button = this.upgradeButtons[i];
-
-                    if (
-                        x >= button.x &&
-                        x <= button.x + button.width &&
-                        y >= button.y &&
-                        y <= button.y + button.height
-                    ) {
-                        this.tryUpgradeTower(choices[i].id);
-                        return;
-                    }
-                }
-            }
-
-            for (const tower of this.towers) {
-                if (tower.contains(x, y)) {
-                    this.selectedTower = tower;
-                    return;
-                }
-            }
-
-            const cost = this.towerCosts[this.selectedType];
-            if (this.gold < cost) return;
-
-            const tower = new Tower(x, y, this.selectedType);
-            this.towers.push(tower);
-            this.gold -= cost;
-            this.selectedTower = tower;
-        });
-
-        window.addEventListener("keydown", (e) => {
-            if (e.key === "1") {
-                this.loadLevel(0);
-            }
-
-            if (e.key === "2") {
-                this.loadLevel(1);
-            }
-        });
+    onExit() {
+        this.canvas.removeEventListener("click", this.handleClick);
+        this.canvas.removeEventListener("mousemove", this.handleMouseMove);
+        this.canvas.style.cursor = "default";
     }
 
     loadLevel(index) {
@@ -158,6 +123,7 @@ export default class GameScene {
         this.pendingWave = [];
         this.gameOver = false;
         this.victory = false;
+        this.endSoundPlayed = false;
 
         this.startWave();
     }
@@ -165,6 +131,10 @@ export default class GameScene {
     startWave() {
         if (this.waveIndex >= this.currentLevel.waves.length) {
             this.victory = true;
+            if (!this.endSoundPlayed) {
+                this.soundManager.playVictory();
+                this.endSoundPlayed = true;
+            }
             return;
         }
 
@@ -181,13 +151,176 @@ export default class GameScene {
         if (!this.selectedTower) return;
 
         const cost = this.selectedTower.getUpgradeCost();
-        if (cost == null) return;
-        if (this.gold < cost) return;
+        if (cost == null || this.gold < cost) return;
 
         const success = this.selectedTower.upgrade(pathId);
         if (success) {
             this.gold -= cost;
+            this.soundManager.playClick();
         }
+    }
+
+    getTopBarTowerIndex(x, y) {
+        if (y >= 40) return null;
+
+        for (let i = 0; i < this.buttons.length; i++) {
+            const startX = 120 * i + 320;
+            const endX = startX + 110;
+
+            if (x >= startX && x <= endX) {
+                return i;
+            }
+        }
+
+        return null;
+    }
+
+    getOverlayButtonAt(x, y) {
+        if (!this.gameOver && !this.victory) return null;
+
+        for (const [key, button] of Object.entries(this.overlayButtons)) {
+            if (
+                x >= button.x &&
+                x <= button.x + button.width &&
+                y >= button.y &&
+                y <= button.y + button.height
+            ) {
+                return key;
+            }
+        }
+
+        return null;
+    }
+
+    getHoveredUpgradeButton(x, y) {
+        if (!this.selectedTower) return null;
+
+        const choices = this.selectedTower.getUpgradeChoices();
+
+        for (let i = 0; i < choices.length; i++) {
+            const button = this.upgradeButtons[i];
+            if (
+                x >= button.x &&
+                x <= button.x + button.width &&
+                y >= button.y &&
+                y <= button.y + button.height
+            ) {
+                return `upgrade-${choices[i].id}`;
+            }
+        }
+
+        return null;
+    }
+
+    handleClick(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const overlayAction = this.getOverlayButtonAt(x, y);
+        if (overlayAction) {
+            this.soundManager.playConfirm();
+
+            if (overlayAction === "restart") {
+                this.loadLevel(this.currentLevelIndex);
+            }
+
+            if (overlayAction === "levels") {
+                this.sceneManager.changeScene(
+                    new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager)
+                );
+            }
+
+            if (overlayAction === "menu") {
+                this.sceneManager.changeScene(
+                    new MainMenuScene(this.canvas, this.sceneManager, this.soundManager)
+                );
+            }
+
+            return;
+        }
+
+        if (this.gameOver || this.victory) return;
+
+        const topIndex = this.getTopBarTowerIndex(x, y);
+        if (topIndex != null) {
+            this.selectedType = this.buttons[topIndex];
+            this.soundManager.playClick();
+            return;
+        }
+
+        if (this.selectedTower) {
+            const choices = this.selectedTower.getUpgradeChoices();
+
+            for (let i = 0; i < choices.length; i++) {
+                const button = this.upgradeButtons[i];
+                if (
+                    x >= button.x &&
+                    x <= button.x + button.width &&
+                    y >= button.y &&
+                    y <= button.y + button.height
+                ) {
+                    this.tryUpgradeTower(choices[i].id);
+                    return;
+                }
+            }
+        }
+
+        for (const tower of this.towers) {
+            if (tower.contains(x, y)) {
+                this.selectedTower = tower;
+                this.soundManager.playClick();
+                return;
+            }
+        }
+
+        const cost = this.towerCosts[this.selectedType];
+        if (this.gold < cost) return;
+
+        const tower = new Tower(x, y, this.selectedType);
+        this.towers.push(tower);
+        this.gold -= cost;
+        this.selectedTower = tower;
+        this.soundManager.playClick();
+    }
+
+    handleMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        this.hoveredId = null;
+
+        const overlayAction = this.getOverlayButtonAt(x, y);
+        if (overlayAction) {
+            this.hoveredId = overlayAction;
+            this.canvas.style.cursor = "pointer";
+            return;
+        }
+
+        const topIndex = this.getTopBarTowerIndex(x, y);
+        if (topIndex != null) {
+            this.hoveredId = `tower-${this.buttons[topIndex]}`;
+            this.canvas.style.cursor = "pointer";
+            return;
+        }
+
+        const hoveredUpgrade = this.getHoveredUpgradeButton(x, y);
+        if (hoveredUpgrade) {
+            this.hoveredId = hoveredUpgrade;
+            this.canvas.style.cursor = "pointer";
+            return;
+        }
+
+        for (const tower of this.towers) {
+            if (tower.contains(x, y)) {
+                this.hoveredId = "tower-select";
+                this.canvas.style.cursor = "pointer";
+                return;
+            }
+        }
+
+        this.canvas.style.cursor = "default";
     }
 
     update(dt) {
@@ -231,6 +364,10 @@ export default class GameScene {
 
         if (this.lives <= 0) {
             this.gameOver = true;
+            if (!this.endSoundPlayed) {
+                this.soundManager.playDefeat();
+                this.endSoundPlayed = true;
+            }
         }
 
         if (
@@ -293,14 +430,22 @@ export default class GameScene {
         ctx.font = "16px Arial";
         ctx.fillText("Gold: " + this.gold, 10, 24);
         ctx.fillText("Lives: " + this.lives, 120, 24);
-        ctx.fillText("Wave: " + Math.min(this.waveIndex + 1, this.currentLevel.waves.length) + "/" + this.currentLevel.waves.length, 220, 24);
+        ctx.fillText(
+            "Wave: " +
+            Math.min(this.waveIndex + 1, this.currentLevel.waves.length) +
+            "/" +
+            this.currentLevel.waves.length,
+            220,
+            24
+        );
 
         this.buttons.forEach((type, i) => {
-            const x = 120 * i + 20;
-            const label = `${type} (${this.towerCosts[type]})`;
+            const x = 120 * i + 320;
+            const hovered = this.hoveredId === `tower-${type}`;
+            const selected = this.selectedType === type;
 
-            ctx.fillStyle = this.selectedType === type ? "gold" : "gray";
-            ctx.fillText(label, x, 24);
+            ctx.fillStyle = selected ? "gold" : hovered ? "#c9d1d9" : "gray";
+            ctx.fillText(`${type} (${this.towerCosts[type]})`, x, 24);
         });
     }
 
@@ -335,8 +480,12 @@ export default class GameScene {
         for (let i = 0; i < choices.length; i++) {
             const button = this.upgradeButtons[i];
             const enabled = this.gold >= (cost ?? 9999);
+            const hovered = this.hoveredId === `upgrade-${choices[i].id}`;
 
-            ctx.fillStyle = enabled ? "#2c6e49" : "#555";
+            ctx.fillStyle = enabled
+                ? hovered ? "#3d8a5d" : "#2c6e49"
+                : "#555";
+
             ctx.fillRect(button.x, button.y, button.width, button.height);
 
             ctx.strokeStyle = "white";
@@ -351,17 +500,31 @@ export default class GameScene {
     drawLevelInfo(ctx) {
         ctx.fillStyle = "white";
         ctx.font = "14px Arial";
-        ctx.fillText("Press 1 for Forest Road", 10, 60);
-        ctx.fillText("Press 2 for Ruined Keep", 10, 80);
-        ctx.fillText("Current Level: " + this.currentLevel.name, 10, 100);
+        ctx.fillText("Current Level: " + this.currentLevel.name, 10, 62);
     }
 
     drawOverlay(ctx, text) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         ctx.fillStyle = "white";
-        ctx.font = "40px Arial";
-        ctx.fillText(text, 400, 260);
+        ctx.font = "44px Arial";
+        ctx.fillText(text, 395, 230);
+
+        this.drawOverlayButton(ctx, this.overlayButtons.restart, "Restart", this.hoveredId === "restart");
+        this.drawOverlayButton(ctx, this.overlayButtons.levels, "Level Select", this.hoveredId === "levels");
+        this.drawOverlayButton(ctx, this.overlayButtons.menu, "Main Menu", this.hoveredId === "menu");
+    }
+
+    drawOverlayButton(ctx, button, label, hovered) {
+        ctx.fillStyle = hovered ? "#3f8a5f" : "#2c6e49";
+        ctx.fillRect(button.x, button.y, button.width, button.height);
+
+        ctx.strokeStyle = "white";
+        ctx.strokeRect(button.x, button.y, button.width, button.height);
+
+        ctx.fillStyle = "white";
+        ctx.font = "20px Arial";
+        ctx.fillText(label, button.x + 22, button.y + 30);
     }
 }
