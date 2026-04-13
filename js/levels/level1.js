@@ -14,11 +14,11 @@ export default {
         { x: 600, y: 340 }, { x: 760, y: 340 }, { x: 860, y: 260 }
     ],
     terrain: {
-        background: "#294a2f",
-        pathOuter: "#7f6a49",
-        pathInner: "#b89b6a",
-        buildTile: "rgba(100, 190, 120, 0.16)",
-        buildTileBorder: "rgba(210, 255, 220, 0.18)"
+        background: "#243d27",
+        pathOuter: "#766146",
+        pathInner: "#c8ae7e",
+        buildTile: "rgba(118, 214, 136, 0.10)",
+        buildTileBorder: "rgba(225, 255, 232, 0.20)"
     },
     waves: [
         ["grunt", "grunt", "scout", "splitter", "scout"],

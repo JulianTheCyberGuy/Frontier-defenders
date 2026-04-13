@@ -10,12 +10,12 @@ import UIRenderer from "../ui/UIRenderer.js";
 import DomUI from "../ui/DomUI.js";
 
 export default class GameScene {
-    constructor(canvas, sceneManager, soundManager, domUi = null) {
+    constructor(canvas, sceneManager, soundManager) {
         this.canvas = canvas;
         this.sceneManager = sceneManager;
         this.soundManager = soundManager;
         this.ui = new UIRenderer(canvas);
-        this.domUI = domUi ?? new DomUI(document.getElementById("dom-ui-root"));
+        this.domUI = new DomUI(document.getElementById("dom-ui-root"));
 
         this.levels = [
             { id: 0, name: level1.name, data: level1 },
@@ -235,8 +235,8 @@ export default class GameScene {
     handleOverlayAction(action) {
         this.soundManager.playConfirm();
         if (action === "restart") this.loadLevel(this.currentLevelIndex);
-        if (action === "levels") this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager, this.domUI));
-        if (action === "menu") this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager, this.domUI));
+        if (action === "levels") this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
+        if (action === "menu") this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager));
     }
 
     handleClick(event) {
@@ -437,14 +437,27 @@ export default class GameScene {
     }
 
     drawMap(ctx) {
-        const backgroundGradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+        const logicalWidth = this.canvas.logicalWidth ?? this.canvas.width;
+        const logicalHeight = this.canvas.logicalHeight ?? this.canvas.height;
+        const backgroundGradient = ctx.createLinearGradient(0, 0, 0, logicalHeight);
         backgroundGradient.addColorStop(0, this.terrain.background);
         backgroundGradient.addColorStop(1, this.darkenColor(this.terrain.background, 0.22));
         ctx.fillStyle = backgroundGradient;
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillRect(0, 0, logicalWidth, logicalHeight);
 
-        this.drawPath(ctx, this.terrain.pathOuter, 34);
-        this.drawPath(ctx, this.terrain.pathInner, 24);
+        this.drawPath(ctx, this.terrain.pathOuter, 30);
+        this.drawPath(ctx, this.terrain.pathInner, 20);
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,255,255,0.06)";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(this.path[0].x, this.path[0].y);
+        for (let i = 1; i < this.path.length; i++) ctx.lineTo(this.path[i].x, this.path[i].y);
+        ctx.stroke();
+        ctx.restore();
 
         const { worldRect } = this.layout;
         ctx.save();
@@ -457,7 +470,7 @@ export default class GameScene {
             worldRect.width * 0.7
         );
         vignette.addColorStop(0, "rgba(255,255,255,0)");
-        vignette.addColorStop(1, "rgba(4,8,14,0.22)");
+        vignette.addColorStop(1, "rgba(4,8,14,0.12)");
         ctx.fillStyle = vignette;
         ctx.fillRect(worldRect.x, worldRect.y, worldRect.width, worldRect.height);
         ctx.restore();
@@ -472,14 +485,14 @@ export default class GameScene {
             ctx.beginPath();
             ctx.arc(tile.x, tile.y, 26, 0, Math.PI * 2);
             ctx.fillStyle = occupied
-                ? "rgba(95, 103, 126, 0.22)"
+                ? "rgba(82, 89, 110, 0.16)"
                 : hovered
-                    ? "rgba(94, 234, 156, 0.22)"
+                    ? "rgba(94, 234, 156, 0.18)"
                     : blocked
-                        ? "rgba(248, 113, 113, 0.18)"
+                        ? "rgba(248, 113, 113, 0.14)"
                         : this.terrain.buildTile;
             ctx.fill();
-            ctx.lineWidth = hovered || blocked ? 2.5 : 1.4;
+            ctx.lineWidth = hovered || blocked ? 2 : 1.1;
             ctx.strokeStyle = hovered
                 ? "rgba(187, 247, 208, 0.9)"
                 : blocked
@@ -865,7 +878,7 @@ export default class GameScene {
     drawOverlay(ctx, text) {
         ctx.save();
         ctx.fillStyle = "rgba(3, 8, 16, 0.76)";
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillRect(0, 0, this.canvas.logicalWidth ?? this.canvas.width, this.canvas.logicalHeight ?? this.canvas.height);
         ctx.restore();
 
         const { overlay, overlayButtons } = this.layout;
