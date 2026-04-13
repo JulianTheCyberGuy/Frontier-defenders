@@ -6,6 +6,7 @@ export default class Enemy {
         this.x = path[0].x;
         this.y = path[0].y;
 
+        this.role = stats.role ?? "grunt";
         this.name = stats.name ?? "Enemy";
         this.maxHp = stats.hp ?? 100;
         this.hp = this.maxHp;
@@ -16,6 +17,15 @@ export default class Enemy {
         this.radius = stats.radius ?? 10;
         this.color = stats.color ?? "red";
 
+        this.isBoss = stats.isBoss ?? false;
+        this.immuneSlow = stats.immuneSlow ?? false;
+        this.spawnMinionRole = stats.spawnMinionRole ?? null;
+        this.spawnMinionCount = stats.spawnMinionCount ?? 0;
+        this.spawnMinionInterval = stats.spawnMinionInterval ?? 0;
+        this.minionTimer = this.spawnMinionInterval;
+        this.enrageThreshold = stats.enrageThreshold ?? 0.5;
+        this.enraged = false;
+
         this.dead = false;
         this.escaped = false;
 
@@ -24,6 +34,10 @@ export default class Enemy {
     }
 
     applyEffect(effect) {
+        if (effect.type === "slow" && this.immuneSlow) {
+            return false;
+        }
+
         const existing = this.effects.find(active => active.type === effect.type);
 
         if (existing) {
@@ -40,10 +54,11 @@ export default class Enemy {
                 existing.source = effect.source ?? existing.source;
             }
 
-            return;
+            return true;
         }
 
         this.effects.push({ ...effect });
+        return true;
     }
 
     updateEffects(dt, scene) {
@@ -52,7 +67,7 @@ export default class Enemy {
         for (const effect of this.effects) {
             effect.time -= dt;
 
-            if (effect.type === "slow") {
+            if (effect.type === "slow" && !this.immuneSlow) {
                 this.speed *= effect.value;
             }
 
@@ -73,10 +88,43 @@ export default class Enemy {
         this.effects = this.effects.filter(effect => effect.time > 0);
     }
 
+    updateBossBehavior(dt, scene) {
+        if (!this.isBoss || this.dead || this.escaped) {
+            return;
+        }
+
+        if (!this.enraged && this.hp <= this.maxHp * this.enrageThreshold) {
+            this.enraged = true;
+            this.baseSpeed += 10;
+            this.speed = this.baseSpeed;
+            scene?.spawnImpact(this.x, this.y, "#f43f5e", 30);
+            scene?.spawnDamageNumber(this.x - 24, this.y - 24, "RAGE", "#fda4af");
+        }
+
+        if (!this.spawnMinionRole || this.spawnMinionCount <= 0 || this.spawnMinionInterval <= 0) {
+            return;
+        }
+
+        this.minionTimer -= dt;
+        if (this.minionTimer > 0) {
+            return;
+        }
+
+        this.minionTimer = this.spawnMinionInterval;
+
+        for (let i = 0; i < this.spawnMinionCount; i++) {
+            scene?.spawnEnemy(this.spawnMinionRole);
+        }
+
+        scene?.spawnImpact(this.x, this.y, "#f87171", 22);
+        scene?.spawnDamageNumber(this.x - 18, this.y - 20, "SUMMON", "#fecaca");
+    }
+
     update(dt, scene) {
         if (this.dead || this.escaped) return;
 
         this.updateEffects(dt, scene);
+        this.updateBossBehavior(dt, scene);
 
         if (this.flashTimer > 0) this.flashTimer -= dt;
 
@@ -120,7 +168,7 @@ export default class Enemy {
     render(ctx) {
         if (this.dead) return;
 
-        const slowed = this.hasEffect("slow");
+        const slowed = !this.immuneSlow && this.hasEffect("slow");
         const burning = this.hasEffect("burn");
 
         ctx.save();
@@ -140,17 +188,28 @@ export default class Enemy {
             ctx.stroke();
         }
 
+        if (this.isBoss) {
+            ctx.fillStyle = "rgba(239, 68, 68, 0.16)";
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         ctx.fillStyle = this.flashTimer > 0 ? "white" : this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = slowed ? "#93c5fd" : "rgba(0,0,0,0.35)";
+        ctx.lineWidth = this.isBoss ? 3 : 2;
+        ctx.strokeStyle = this.isBoss ? "#fee2e2" : slowed ? "#93c5fd" : "rgba(0,0,0,0.35)";
         ctx.stroke();
 
+        if (this.isBoss) {
+            this.drawBossCrown(ctx);
+        }
+
         ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.font = "bold 9px Arial";
+        ctx.font = this.isBoss ? "bold 10px Arial" : "bold 9px Arial";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(this.name[0], this.x, this.y + 0.5);
@@ -161,11 +220,25 @@ export default class Enemy {
         ctx.restore();
     }
 
+    drawBossCrown(ctx) {
+        const crownY = this.y - this.radius - 6;
+
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        ctx.moveTo(this.x - 10, crownY + 4);
+        ctx.lineTo(this.x - 6, crownY - 6);
+        ctx.lineTo(this.x, crownY + 1);
+        ctx.lineTo(this.x + 6, crownY - 6);
+        ctx.lineTo(this.x + 10, crownY + 4);
+        ctx.closePath();
+        ctx.fill();
+    }
+
     drawHealthBar(ctx) {
-        const width = Math.max(18, this.radius * 2.2);
-        const height = 4;
+        const width = this.isBoss ? Math.max(44, this.radius * 2.8) : Math.max(18, this.radius * 2.2);
+        const height = this.isBoss ? 6 : 4;
         const x = this.x - width / 2;
-        const y = this.y - this.radius - 10;
+        const y = this.y - this.radius - (this.isBoss ? 16 : 10);
         const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 0;
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
@@ -176,11 +249,12 @@ export default class Enemy {
     }
 
     drawStatusIcons(ctx, slowed, burning) {
-        const iconY = this.y - this.radius - 18;
+        const iconY = this.y - this.radius - (this.isBoss ? 26 : 18);
         let iconX = this.x;
 
         const icons = [];
-        if (slowed) icons.push({ label: "S", fill: "#60a5fa" });
+        if (this.immuneSlow) icons.push({ label: "I", fill: "#38bdf8" });
+        else if (slowed) icons.push({ label: "S", fill: "#60a5fa" });
         if (burning) icons.push({ label: "B", fill: "#fb923c" });
 
         if (icons.length === 2) {

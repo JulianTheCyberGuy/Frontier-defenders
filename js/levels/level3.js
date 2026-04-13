@@ -23,9 +23,22 @@ export default {
         buildTile: "rgba(210, 90, 50, 0.16)",
         buildTileBorder: "rgba(255, 200, 160, 0.18)"
     },
+    boss: {
+        name: "Infernal Behemoth",
+        hp: 1650,
+        speed: 28,
+        reward: 180,
+        radius: 26,
+        color: "#b91c1c",
+        immuneSlow: true,
+        spawnMinionRole: "elite",
+        spawnMinionCount: 1,
+        spawnMinionInterval: 6,
+        enrageThreshold: 0.55
+    },
     waves: [
         ["scout", "grunt", "scout", "grunt", "tank", "scout"],
-        ["grunt", "tank", "scout", "grunt", "tank", "scout", "scout"],
-        ["tank", "tank", "grunt", "scout", "tank", "grunt", "scout", "tank"]
+        ["grunt", "tank", "scout", "grunt", "tank", "elite", "scout"],
+        ["tank", "elite", "grunt", "scout", "tank", "grunt", "elite", "boss"]
     ]
 };

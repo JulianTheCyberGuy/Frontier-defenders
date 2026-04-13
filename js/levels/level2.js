@@ -23,9 +23,22 @@ export default {
         buildTile: "rgba(145, 170, 145, 0.14)",
         buildTileBorder: "rgba(240, 240, 240, 0.16)"
     },
+    boss: {
+        name: "Warden of Ash",
+        hp: 1350,
+        speed: 26,
+        reward: 150,
+        radius: 24,
+        color: "#991b1b",
+        immuneSlow: true,
+        spawnMinionRole: "grunt",
+        spawnMinionCount: 2,
+        spawnMinionInterval: 7,
+        enrageThreshold: 0.5
+    },
     waves: [
         ["grunt", "scout", "grunt", "tank", "scout"],
         ["tank", "grunt", "scout", "scout", "tank", "grunt"],
-        ["tank", "tank", "scout", "grunt", "scout", "grunt", "tank"]
+        ["tank", "tank", "elite", "grunt", "scout", "grunt", "boss"]
     ]
 };
