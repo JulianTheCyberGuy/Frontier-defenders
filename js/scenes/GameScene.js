@@ -5,7 +5,6 @@ import level2 from "../levels/level2.js";
 import level3 from "../levels/level3.js";
 import MainMenuScene from "./MainMenuScene.js";
 import LevelSelectScene from "./LevelSelectScene.js";
-import UIRenderer from "../ui/UIRenderer.js";
 
 export default class GameScene {
     constructor(canvas, sceneManager, soundManager) {
@@ -45,16 +44,13 @@ export default class GameScene {
             levels: { x: 480, y: 290, width: 160, height: 48 },
             menu: { x: 380, y: 350, width: 200, height: 48 }
         };
+        this.volumeButton = { x: 842, y: 6, width: 108, height: 28 };
 
         this.selectedType = "archer";
         this.selectedTower = null;
         this.hoveredId = null;
         this.currentLevelIndex = 0;
         this.pendingWaveBonus = 0;
-        this.hoverPoint = { x: 0, y: 0 };
-        this.tooltip = null;
-        this.previewTileIndex = null;
-        this.uiRenderer = new UIRenderer(canvas);
 
         this.damageNumbers = [];
         this.impactEffects = [];
@@ -68,6 +64,7 @@ export default class GameScene {
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
         this.canvas.style.cursor = "default";
+        this.soundManager.startGameplayMusic();
     }
 
     onExit() {
@@ -93,8 +90,6 @@ export default class GameScene {
         this.gold = 260;
         this.lives = 20;
         this.selectedTower = null;
-        this.tooltip = null;
-        this.previewTileIndex = null;
 
         this.waveIndex = 0;
         this.waveTimer = 0;
@@ -121,10 +116,14 @@ export default class GameScene {
         this.pendingWave = [...this.currentLevel.data.waves[this.waveIndex]];
         this.pendingWaveBonus = 15 + this.waveIndex * 6;
         this.spawnTimer = 0;
+        this.soundManager.playWaveStart();
     }
 
     spawnEnemy(role) {
         this.enemies.push(new Enemy(this.path, this.enemyTypes[role]));
+        if (String(role).toLowerCase().includes("boss")) {
+            this.soundManager.playBossSpawn();
+        }
     }
 
     spawnDamageNumber(x, y, value, color = "#ffffff") {
@@ -144,7 +143,7 @@ export default class GameScene {
         const success = this.selectedTower.upgrade(pathId);
         if (success) {
             this.gold -= cost;
-            this.soundManager.playClick();
+            this.soundManager.playUpgrade();
         }
     }
 
@@ -162,7 +161,7 @@ export default class GameScene {
         this.towers = this.towers.filter((item) => item !== tower);
         this.spawnDamageNumber(tower.x - 14, tower.y - 18, `+${sellValue}`, "#7ef0c2");
         this.selectedTower = null;
-        this.soundManager.playClick();
+        this.soundManager.playSell();
     }
 
     getTopBarTowerIndex(x, y) {
@@ -175,6 +174,16 @@ export default class GameScene {
         }
 
         return null;
+    }
+
+
+    isInsideVolumeButton(x, y) {
+        return (
+            x >= this.volumeButton.x &&
+            x <= this.volumeButton.x + this.volumeButton.width &&
+            y >= this.volumeButton.y &&
+            y <= this.volumeButton.y + this.volumeButton.height
+        );
     }
 
     getOverlayButtonAt(x, y) {
@@ -229,6 +238,11 @@ export default class GameScene {
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+
+        if (this.isInsideVolumeButton(x, y)) {
+            this.soundManager.cycleVolume();
+            return;
+        }
 
         const overlayAction = this.getOverlayButtonAt(x, y);
         if (overlayAction) {
@@ -294,7 +308,7 @@ export default class GameScene {
         this.occupiedBuildTiles.add(buildSpot.index);
         this.gold -= cost;
         this.selectedTower = tower;
-        this.soundManager.playClick();
+        this.soundManager.playPlaceTower();
     }
 
     handleMouseMove(e) {
@@ -302,10 +316,13 @@ export default class GameScene {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        this.hoverPoint = { x, y };
         this.hoveredId = null;
-        this.tooltip = null;
-        this.previewTileIndex = null;
+
+        if (this.isInsideVolumeButton(x, y)) {
+            this.hoveredId = "volume";
+            this.canvas.style.cursor = "pointer";
+            return;
+        }
 
         const overlayAction = this.getOverlayButtonAt(x, y);
         if (overlayAction) {
@@ -316,9 +333,7 @@ export default class GameScene {
 
         const topIndex = this.getTopBarTowerIndex(x, y);
         if (topIndex != null) {
-            const type = this.buttons[topIndex];
-            this.hoveredId = `tower-${type}`;
-            this.tooltip = this.getTowerMenuTooltip(type, x, y);
+            this.hoveredId = `tower-${this.buttons[topIndex]}`;
             this.canvas.style.cursor = "pointer";
             return;
         }
@@ -333,76 +348,19 @@ export default class GameScene {
         for (const tower of this.towers) {
             if (tower.contains(x, y)) {
                 this.hoveredId = "tower-select";
-                this.tooltip = this.getPlacedTowerTooltip(tower, x, y);
-                this.canvas.style.cursor = "pointer";
-                return;
-            }
-        }
-
-        for (const enemy of this.enemies) {
-            if (!enemy.dead && !enemy.escaped && Math.hypot(enemy.x - x, enemy.y - y) <= enemy.radius + 4) {
-                this.hoveredId = "enemy-hover";
-                this.tooltip = this.getEnemyTooltip(enemy, x, y);
                 this.canvas.style.cursor = "pointer";
                 return;
             }
         }
 
         const buildSpot = this.getBuildTileAt(x, y);
-        if (buildSpot) {
-            const canPlace = this.canPlaceTowerOnTile(buildSpot.index);
-            this.previewTileIndex = buildSpot.index;
-            this.hoveredId = `build-${buildSpot.index}-${canPlace ? "valid" : "invalid"}`;
-            this.canvas.style.cursor = canPlace ? "pointer" : "not-allowed";
+        if (buildSpot && this.canPlaceTowerOnTile(buildSpot.index)) {
+            this.hoveredId = `build-${buildSpot.index}`;
+            this.canvas.style.cursor = "pointer";
             return;
         }
 
         this.canvas.style.cursor = "default";
-    }
-
-    getTowerMenuTooltip(type, x, y) {
-        const previewTower = new Tower(0, 0, type);
-        const stats = previewTower.getDisplayStats();
-        return {
-            x,
-            y,
-            title: stats.name,
-            lines: [
-                `Damage: ${stats.damage}`,
-                `Range: ${stats.range}`,
-                `Rate: ${stats.rate}`,
-                `${stats.ability}`
-            ]
-        };
-    }
-
-    getPlacedTowerTooltip(tower, x, y) {
-        const stats = tower.getDisplayStats();
-        return {
-            x,
-            y,
-            title: stats.name,
-            lines: [
-                `Level: ${stats.level}`,
-                `Damage: ${stats.damage}`,
-                `Range: ${stats.range}`,
-                `Rate: ${stats.rate}`,
-                `${stats.ability}`
-            ]
-        };
-    }
-
-    getEnemyTooltip(enemy, x, y) {
-        return {
-            x,
-            y,
-            title: enemy.name,
-            lines: [
-                `HP: ${Math.ceil(enemy.hp)}/${enemy.maxHp}`,
-                `Speed: ${Math.round(enemy.baseSpeed)}`,
-                enemy.getTraitSummary()
-            ]
-        };
     }
 
     update(dt) {
@@ -473,22 +431,18 @@ export default class GameScene {
     render(ctx) {
         this.drawMap(ctx);
 
-        const rangeTower = this.selectedTower ?? (this.previewTileIndex != null && this.canPlaceTowerOnTile(this.previewTileIndex) ? new Tower(this.buildTiles[this.previewTileIndex].x, this.buildTiles[this.previewTileIndex].y, this.selectedType) : null);
-        if (rangeTower) this.uiRenderer.drawRangeIndicator(ctx, rangeTower.x, rangeTower.y, rangeTower.range);
-
         for (const impact of this.impactEffects) this.drawImpactEffect(ctx, impact);
         for (const tower of this.towers) tower.render(ctx);
         for (const projectile of this.projectiles) projectile.render(ctx);
         for (const enemy of this.enemies) enemy.render(ctx);
         for (const number of this.damageNumbers) this.drawDamageNumber(ctx, number);
 
-        this.uiRenderer.drawTopBar(ctx, this);
-        this.uiRenderer.drawSelectedTowerPanel(ctx, this);
-        this.uiRenderer.drawLevelInfo(ctx, this);
-        this.uiRenderer.drawTooltip(ctx, this);
+        this.drawTopBar(ctx);
+        this.drawSelectedTowerPanel(ctx);
+        this.drawLevelInfo(ctx);
 
-        if (this.gameOver) this.uiRenderer.drawOverlay(ctx, this, "Defeat");
-        if (this.victory) this.uiRenderer.drawOverlay(ctx, this, "Victory");
+        if (this.gameOver) this.drawOverlay(ctx, "Defeat");
+        if (this.victory) this.drawOverlay(ctx, "Victory");
     }
 
     drawMap(ctx) {
@@ -501,22 +455,10 @@ export default class GameScene {
         for (let i = 0; i < this.buildTiles.length; i++) {
             const tile = this.buildTiles[i];
             const occupied = this.occupiedBuildTiles.has(i);
-            const isPreview = this.previewTileIndex === i;
-            const previewValid = isPreview && this.canPlaceTowerOnTile(i);
-            const previewInvalid = isPreview && !this.canPlaceTowerOnTile(i);
+            const hovered = this.hoveredId === `build-${i}`;
 
-            ctx.fillStyle = occupied
-                ? "rgba(80,80,80,0.20)"
-                : previewValid
-                    ? "rgba(90,220,120,0.28)"
-                    : previewInvalid
-                        ? "rgba(255,90,90,0.25)"
-                        : this.terrain.buildTile;
-            ctx.strokeStyle = previewValid
-                ? "rgba(170,255,190,0.8)"
-                : previewInvalid
-                    ? "rgba(255,140,140,0.8)"
-                    : this.terrain.buildTileBorder;
+            ctx.fillStyle = occupied ? "rgba(80,80,80,0.20)" : hovered ? "rgba(200,255,200,0.25)" : this.terrain.buildTile;
+            ctx.strokeStyle = hovered ? "rgba(255,255,255,0.35)" : this.terrain.buildTileBorder;
 
             ctx.beginPath();
             ctx.arc(tile.x, tile.y, 24, 0, Math.PI * 2);
@@ -558,6 +500,120 @@ export default class GameScene {
         ctx.restore();
     }
 
+    drawTopBar(ctx) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, 960, 40);
+
+        ctx.fillStyle = "white";
+        ctx.font = "16px Arial";
+        ctx.fillText("Gold: " + this.gold, 10, 24);
+        ctx.fillText("Lives: " + this.lives, 120, 24);
+        ctx.fillText(
+            "Wave: " + Math.min(this.waveIndex + 1, this.currentLevel.data.waves.length) + "/" + this.currentLevel.data.waves.length,
+            220,
+            24
+        );
+
+        this.buttons.forEach((type, i) => {
+            const x = 120 * i + 320;
+            const hovered = this.hoveredId === `tower-${type}`;
+            const selected = this.selectedType === type;
+
+            ctx.fillStyle = selected ? "gold" : hovered ? "#c9d1d9" : "gray";
+            ctx.fillText(`${type} (${this.towerCosts[type]})`, x, 24);
+        });
+
+        this.drawVolumeButton(ctx);
+    }
+
+    drawVolumeButton(ctx) {
+        const hovered = this.hoveredId === "volume";
+
+        ctx.fillStyle = hovered ? "#2a2f3a" : "#1b1f27";
+        ctx.fillRect(this.volumeButton.x, this.volumeButton.y, this.volumeButton.width, this.volumeButton.height);
+
+        ctx.strokeStyle = hovered ? "#8fe3ff" : "#6b7280";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(this.volumeButton.x, this.volumeButton.y, this.volumeButton.width, this.volumeButton.height);
+
+        ctx.fillStyle = this.soundManager.masterVolume <= 0 ? "#ff9a62" : "#dbeafe";
+        ctx.font = "13px Arial";
+        ctx.fillText(this.soundManager.getVolumeLabel(), this.volumeButton.x + 14, this.volumeButton.y + 18);
+    }
+
+    drawSelectedTowerPanel(ctx) {
+        if (!this.selectedTower) return;
+
+        const stats = this.selectedTower.getDisplayStats();
+        const cost = this.selectedTower.getUpgradeCost();
+        const choices = this.selectedTower.getUpgradeChoices();
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.82)";
+        ctx.fillRect(680, 50, 260, 210);
+
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(680, 50, 260, 210);
+
+        ctx.fillStyle = "white";
+        ctx.font = "16px Arial";
+        ctx.fillText(stats.name, 695, 72);
+        ctx.fillText("Level: " + stats.level, 695, 94);
+        ctx.fillText("Damage: " + stats.damage, 695, 116);
+        ctx.fillText("Range: " + stats.range, 695, 138);
+        ctx.fillText("Rate: " + stats.rate, 695, 160);
+        ctx.fillText("Invested: " + stats.invested, 695, 182);
+        ctx.fillText("Sell Value: " + stats.sellValue, 695, 204);
+
+        if (cost != null) ctx.fillText("Upgrade Cost: " + cost, 695, 226);
+        else ctx.fillText("Max Level Reached", 695, 226);
+
+        for (let i = 0; i < choices.length; i++) {
+            const button = this.upgradeButtons[i];
+            const enabled = this.gold >= (cost ?? 9999);
+            const hovered = this.hoveredId === `upgrade-${choices[i].id}`;
+
+            ctx.fillStyle = enabled ? (hovered ? "#3d8a5d" : "#2c6e49") : "#555";
+            ctx.fillRect(button.x, button.y, button.width, button.height);
+
+            ctx.strokeStyle = "white";
+            ctx.strokeRect(button.x, button.y, button.width, button.height);
+
+            ctx.fillStyle = "white";
+            ctx.font = "14px Arial";
+            ctx.fillText(choices[i].label, button.x + 10, button.y + 22);
+        }
+
+        const sellHovered = this.hoveredId === "sell-tower";
+        ctx.fillStyle = sellHovered ? "#a84b4b" : "#8a3333";
+        ctx.fillRect(this.sellButton.x, this.sellButton.y, this.sellButton.width, this.sellButton.height);
+        ctx.strokeStyle = "white";
+        ctx.strokeRect(this.sellButton.x, this.sellButton.y, this.sellButton.width, this.sellButton.height);
+        ctx.fillStyle = "white";
+        ctx.font = "14px Arial";
+        ctx.fillText(`Sell Tower (+${stats.sellValue})`, this.sellButton.x + 10, this.sellButton.y + 23);
+    }
+
+    drawLevelInfo(ctx) {
+        ctx.fillStyle = "white";
+        ctx.font = "14px Arial";
+        ctx.fillText("Current Level: " + this.currentLevel.name, 10, 62);
+        ctx.fillText("Build on glowing circles only", 10, 82);
+        ctx.fillText("Clear waves for bonus gold", 10, 102);
+    }
+
+    drawOverlay(ctx, text) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        ctx.fillStyle = "white";
+        ctx.font = "44px Arial";
+        ctx.fillText(text, 395, 230);
+
+        this.drawOverlayButton(ctx, this.overlayButtons.restart, "Restart", this.hoveredId === "restart");
+        this.drawOverlayButton(ctx, this.overlayButtons.levels, "Level Select", this.hoveredId === "levels");
+        this.drawOverlayButton(ctx, this.overlayButtons.menu, "Main Menu", this.hoveredId === "menu");
+    }
 
     drawOverlayButton(ctx, button, label, hovered) {
         ctx.fillStyle = hovered ? "#3f8a5f" : "#2c6e49";

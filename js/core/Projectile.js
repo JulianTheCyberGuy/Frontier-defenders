@@ -24,6 +24,10 @@ export default class Projectile {
             maxImpactRadius: 14
         });
 
+        if (this.scene && this.scene.soundManager && this.radius >= 6) {
+            this.scene.soundManager.playExplosion();
+        }
+
         this.hitEnemies.add(target);
         if (this.onHit) this.onHit(target, this.scene);
 

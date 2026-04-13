@@ -14,6 +14,7 @@ export default class LevelSelectScene {
         ];
 
         this.backButton = { x: 20, y: 20, width: 120, height: 40 };
+        this.volumeButton = { x: 820, y: 20, width: 120, height: 34 };
         this.hoveredId = null;
 
         this.handleClick = this.handleClick.bind(this);
@@ -23,6 +24,7 @@ export default class LevelSelectScene {
     onEnter() {
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
+        this.soundManager.startMenuMusic();
     }
 
     onExit() {
@@ -31,6 +33,15 @@ export default class LevelSelectScene {
     }
 
     getHoveredButton(x, y) {
+        if (
+            x >= this.volumeButton.x &&
+            x <= this.volumeButton.x + this.volumeButton.width &&
+            y >= this.volumeButton.y &&
+            y <= this.volumeButton.y + this.volumeButton.height
+        ) {
+            return "volume";
+        }
+
         if (
             x >= this.backButton.x &&
             x <= this.backButton.x + this.backButton.width &&
@@ -60,6 +71,11 @@ export default class LevelSelectScene {
         const y = e.clientY - rect.top;
 
         const hovered = this.getHoveredButton(x, y);
+
+        if (hovered === "volume") {
+            this.soundManager.cycleVolume();
+            return;
+        }
 
         if (hovered === "back") {
             this.soundManager.playClick();
@@ -98,6 +114,15 @@ export default class LevelSelectScene {
         ctx.fillStyle = "white";
         ctx.font = "36px Arial";
         ctx.fillText("Select Level", 360, 110);
+
+        const volumeHovered = this.hoveredId === "volume";
+        ctx.fillStyle = volumeHovered ? "#2a2f3a" : "#1b1f27";
+        ctx.fillRect(this.volumeButton.x, this.volumeButton.y, this.volumeButton.width, this.volumeButton.height);
+        ctx.strokeStyle = volumeHovered ? "#8fe3ff" : "#6b7280";
+        ctx.strokeRect(this.volumeButton.x, this.volumeButton.y, this.volumeButton.width, this.volumeButton.height);
+        ctx.fillStyle = this.soundManager.masterVolume <= 0 ? "#ff9a62" : "#dbeafe";
+        ctx.font = "14px Arial";
+        ctx.fillText(this.soundManager.getVolumeLabel(), this.volumeButton.x + 14, this.volumeButton.y + 22);
 
         const backHovered = this.hoveredId === "back";
         ctx.fillStyle = backHovered ? "#666" : "#444";

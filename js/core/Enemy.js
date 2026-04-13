@@ -127,6 +127,7 @@ export default class Enemy {
         if (this.scene) {
             this.scene.spawnDamageNumber(this.x, this.y - this.radius - 8, reducedAmount, options.color ?? "#ffffff");
             this.scene.spawnImpact(this.x, this.y, options.impactColor ?? "#ffffff", options.maxImpactRadius ?? 12);
+            this.scene.soundManager?.playEnemyHit();
         }
 
         if (this.hp <= 0) {
@@ -151,15 +152,6 @@ export default class Enemy {
 
     hasEffect(type) {
         return this.effects.some(effect => effect.type === type);
-    }
-
-    getTraitSummary() {
-        const traits = [];
-        if (this.damageReduction > 0) traits.push('Shielded');
-        if (this.pendingSpawnRoles.length > 0) traits.push('Splits on death');
-        if (this.slowImmune) traits.push('Slow immune');
-        if (this.stunImmune) traits.push('Stun immune');
-        return traits.length > 0 ? traits.join(', ') : 'No special traits';
     }
 
     render(ctx) {

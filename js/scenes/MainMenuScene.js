@@ -12,8 +12,10 @@ export default class MainMenuScene {
             width: 200,
             height: 60
         };
+        this.volumeButton = { x: 820, y: 20, width: 120, height: 34 };
 
         this.hovered = false;
+        this.volumeHovered = false;
 
         this.handleClick = this.handleClick.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -22,6 +24,7 @@ export default class MainMenuScene {
     onEnter() {
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
+        this.soundManager.startMenuMusic();
     }
 
     onExit() {
@@ -38,10 +41,24 @@ export default class MainMenuScene {
         );
     }
 
+    isInsideVolumeButton(x, y) {
+        return (
+            x >= this.volumeButton.x &&
+            x <= this.volumeButton.x + this.volumeButton.width &&
+            y >= this.volumeButton.y &&
+            y <= this.volumeButton.y + this.volumeButton.height
+        );
+    }
+
     handleClick(e) {
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+
+        if (this.isInsideVolumeButton(x, y)) {
+            this.soundManager.cycleVolume();
+            return;
+        }
 
         if (this.isInsideButton(x, y)) {
             this.soundManager.playConfirm();
@@ -57,7 +74,8 @@ export default class MainMenuScene {
         const y = e.clientY - rect.top;
 
         this.hovered = this.isInsideButton(x, y);
-        this.canvas.style.cursor = this.hovered ? "pointer" : "default";
+        this.volumeHovered = this.isInsideVolumeButton(x, y);
+        this.canvas.style.cursor = this.hovered || this.volumeHovered ? "pointer" : "default";
     }
 
     update() {}
