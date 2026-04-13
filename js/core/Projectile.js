@@ -6,11 +6,13 @@ export default class Projectile {
         this.damage = damage;
         this.dead = false;
 
-        this.speed = 300;
+        this.speed = options.speed ?? 300;
+        this.radius = options.radius ?? 4;
+        this.color = options.color ?? "yellow";
         this.onHit = options.onHit;
     }
 
-    update(dt) {
+    update(dt, scene) {
         if (!this.target || this.target.dead) {
             this.dead = true;
             return;
@@ -20,10 +22,19 @@ export default class Projectile {
         const dy = this.target.y - this.y;
         const dist = Math.hypot(dx, dy);
 
-        if (dist < 5) {
-            this.target.takeDamage(this.damage);
+        if (dist < this.radius + this.target.radius * 0.5) {
+            if (this.damage > 0) {
+                const didDamage = this.target.takeDamage(this.damage);
+                if (didDamage) {
+                    scene?.spawnDamageNumber(this.target.x - 8, this.target.y - 16, this.damage, "#ffffff");
+                }
+            }
 
-            if (this.onHit) this.onHit(this.target);
+            scene?.spawnImpact(this.target.x, this.target.y, this.color, 12);
+
+            if (this.onHit) {
+                this.onHit(this.target, scene);
+            }
 
             this.dead = true;
             return;
@@ -34,9 +45,11 @@ export default class Projectile {
     }
 
     render(ctx) {
-        ctx.fillStyle = "yellow";
+        ctx.save();
+        ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
     }
 }

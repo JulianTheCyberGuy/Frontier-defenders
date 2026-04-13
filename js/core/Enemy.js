@@ -6,6 +6,7 @@ export default class Enemy {
         this.x = path[0].x;
         this.y = path[0].y;
 
+        this.name = stats.name ?? "Enemy";
         this.maxHp = stats.hp ?? 100;
         this.hp = this.maxHp;
         this.speed = stats.speed ?? 50;
@@ -23,35 +24,59 @@ export default class Enemy {
     }
 
     applyEffect(effect) {
-        this.effects.push(effect);
-    }
+        const existing = this.effects.find(active => active.type === effect.type);
 
-    updateEffects(dt) {
-        this.speed = this.baseSpeed;
+        if (existing) {
+            existing.time = Math.max(existing.time, effect.time ?? 0);
 
-        for (const e of this.effects) {
-            e.time -= dt;
-
-            if (e.type === "slow") {
-                this.speed *= e.value;
+            if (effect.type === "slow") {
+                existing.value = Math.min(existing.value ?? 1, effect.value ?? 1);
             }
 
-            if (e.type === "burn") {
-                e.tick -= dt;
-                if (e.tick <= 0) {
-                    this.hp -= e.damage;
-                    e.tick = e.interval;
+            if (effect.type === "burn") {
+                existing.damage = Math.max(existing.damage ?? 0, effect.damage ?? 0);
+                existing.interval = effect.interval ?? existing.interval ?? 0.5;
+                existing.tick = Math.min(existing.tick ?? existing.interval, effect.tick ?? effect.interval ?? existing.interval);
+                existing.source = effect.source ?? existing.source;
+            }
+
+            return;
+        }
+
+        this.effects.push({ ...effect });
+    }
+
+    updateEffects(dt, scene) {
+        this.speed = this.baseSpeed;
+
+        for (const effect of this.effects) {
+            effect.time -= dt;
+
+            if (effect.type === "slow") {
+                this.speed *= effect.value;
+            }
+
+            if (effect.type === "burn") {
+                effect.tick -= dt;
+                if (effect.tick <= 0) {
+                    const didDamage = this.takeDamage(effect.damage);
+                    if (didDamage) {
+                        const color = effect.source === "poison" ? "#c084fc" : "#ff9f43";
+                        scene?.spawnDamageNumber(this.x - 8, this.y - 18, effect.damage, color);
+                        scene?.spawnImpact(this.x, this.y, color, 10);
+                    }
+                    effect.tick = effect.interval;
                 }
             }
         }
 
-        this.effects = this.effects.filter(e => e.time > 0);
+        this.effects = this.effects.filter(effect => effect.time > 0);
     }
 
-    update(dt) {
+    update(dt, scene) {
         if (this.dead || this.escaped) return;
 
-        this.updateEffects(dt);
+        this.updateEffects(dt, scene);
 
         if (this.flashTimer > 0) this.flashTimer -= dt;
 
@@ -88,12 +113,91 @@ export default class Enemy {
         return true;
     }
 
+    hasEffect(type) {
+        return this.effects.some(effect => effect.type === type);
+    }
+
     render(ctx) {
         if (this.dead) return;
+
+        const slowed = this.hasEffect("slow");
+        const burning = this.hasEffect("burn");
+
+        ctx.save();
+
+        if (slowed) {
+            ctx.fillStyle = "rgba(96, 165, 250, 0.22)";
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        if (burning) {
+            ctx.strokeStyle = "rgba(251, 146, 60, 0.95)";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 5.5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
 
         ctx.fillStyle = this.flashTimer > 0 ? "white" : this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = slowed ? "#93c5fd" : "rgba(0,0,0,0.35)";
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.font = "bold 9px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(this.name[0], this.x, this.y + 0.5);
+
+        this.drawHealthBar(ctx);
+        this.drawStatusIcons(ctx, slowed, burning);
+
+        ctx.restore();
+    }
+
+    drawHealthBar(ctx) {
+        const width = Math.max(18, this.radius * 2.2);
+        const height = 4;
+        const x = this.x - width / 2;
+        const y = this.y - this.radius - 10;
+        const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 0;
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(x, y, width, height);
+
+        ctx.fillStyle = ratio > 0.5 ? "#22c55e" : ratio > 0.25 ? "#f59e0b" : "#ef4444";
+        ctx.fillRect(x, y, width * ratio, height);
+    }
+
+    drawStatusIcons(ctx, slowed, burning) {
+        const iconY = this.y - this.radius - 18;
+        let iconX = this.x;
+
+        const icons = [];
+        if (slowed) icons.push({ label: "S", fill: "#60a5fa" });
+        if (burning) icons.push({ label: "B", fill: "#fb923c" });
+
+        if (icons.length === 2) {
+            iconX -= 8;
+        }
+
+        for (const icon of icons) {
+            ctx.fillStyle = icon.fill;
+            ctx.beginPath();
+            ctx.arc(iconX, iconY, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "white";
+            ctx.font = "bold 8px Arial";
+            ctx.fillText(icon.label, iconX, iconY + 0.5);
+
+            iconX += 16;
+        }
     }
 }

@@ -21,7 +21,8 @@ export default class GameScene {
         this.enemyTypes = {
             scout: { name: "Scout", hp: 55, speed: 90, reward: 8, radius: 8, color: "#ff7b72" },
             grunt: { name: "Grunt", hp: 120, speed: 52, reward: 12, radius: 10, color: "#d29922" },
-            tank: { name: "Tank", hp: 240, speed: 34, reward: 20, radius: 13, color: "#8b949e" }
+            tank: { name: "Tank", hp: 240, speed: 34, reward: 20, radius: 13, color: "#8b949e" },
+            elite: { name: "Elite", hp: 360, speed: 46, reward: 28, radius: 14, color: "#a371f7" }
         };
 
         this.towerCosts = {
@@ -114,7 +115,8 @@ export default class GameScene {
     }
 
     spawnEnemy(role) {
-        this.enemies.push(new Enemy(this.path, this.enemyTypes[role]));
+        const enemyStats = this.enemyTypes[role] ?? this.enemyTypes.grunt;
+        this.enemies.push(new Enemy(this.path, enemyStats));
     }
 
     spawnDamageNumber(x, y, value, color = "#ffffff") {
@@ -314,9 +316,9 @@ export default class GameScene {
                 this.spawnTimer = this.spawnGap;
             }
 
-            for (const enemy of this.enemies) enemy.update(dt);
+            for (const enemy of this.enemies) enemy.update(dt, this);
             for (const tower of this.towers) tower.update(dt, this.enemies, this.projectiles, this);
-            for (const projectile of this.projectiles) projectile.update(dt);
+            for (const projectile of this.projectiles) projectile.update(dt, this);
 
             for (const enemy of this.enemies) {
                 if (enemy.dead) this.gold += enemy.reward;
