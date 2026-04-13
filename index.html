@@ -11,7 +11,10 @@
 </head>
 <body>
 <div class="game-shell">
-    <canvas id="gameCanvas" aria-label="Frontier Defenders"></canvas>
+    <div id="gameViewport" class="game-viewport">
+        <canvas id="gameCanvas" aria-label="Frontier Defenders"></canvas>
+        <div id="dom-ui-root" class="dom-ui-root" aria-live="polite"></div>
+    </div>
 </div>
 <script type="module" src="./js/main.js"></script>
 </body>

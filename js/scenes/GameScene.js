@@ -7,6 +7,7 @@ import level3 from "../levels/level3.js";
 import MainMenuScene from "./MainMenuScene.js";
 import LevelSelectScene from "./LevelSelectScene.js";
 import UIRenderer from "../ui/UIRenderer.js";
+import DomUI from "../ui/DomUI.js";
 
 export default class GameScene {
     constructor(canvas, sceneManager, soundManager) {
@@ -14,6 +15,7 @@ export default class GameScene {
         this.sceneManager = sceneManager;
         this.soundManager = soundManager;
         this.ui = new UIRenderer(canvas);
+        this.domUI = new DomUI(document.getElementById("dom-ui-root"));
 
         this.levels = [
             { id: 0, name: level1.name, data: level1 },
@@ -60,12 +62,23 @@ export default class GameScene {
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
         this.canvas.style.cursor = "default";
+        this.domUI.showGame({
+            onSelectTowerType: (type) => {
+                this.selectedType = type;
+                this.selectedTower = null;
+                this.soundManager.playClick();
+            },
+            onUpgrade: (id) => this.tryUpgradeTower(id),
+            onSell: () => this.sellSelectedTower(),
+            onOverlayAction: (action) => this.handleOverlayAction(action)
+        });
     }
 
     onExit() {
         this.canvas.removeEventListener("click", this.handleClick);
         this.canvas.removeEventListener("mousemove", this.handleMouseMove);
         this.canvas.style.cursor = "default";
+        this.domUI.hide();
     }
 
     refreshLayout() {
@@ -219,46 +232,19 @@ export default class GameScene {
         return !this.occupiedBuildTiles.has(index);
     }
 
+    handleOverlayAction(action) {
+        this.soundManager.playConfirm();
+        if (action === "restart") this.loadLevel(this.currentLevelIndex);
+        if (action === "levels") this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
+        if (action === "menu") this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager));
+    }
+
     handleClick(event) {
         this.refreshLayout();
         const { x, y } = this.ui.getPointerPosition(event);
         this.pointer = { x, y };
 
-        const overlayAction = this.getOverlayButtonAt(x, y);
-        if (overlayAction) {
-            this.soundManager.playConfirm();
-            if (overlayAction === "restart") this.loadLevel(this.currentLevelIndex);
-            if (overlayAction === "levels") this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
-            if (overlayAction === "menu") this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager));
-            return;
-        }
-
         if (this.gameOver || this.victory) return;
-
-        const towerIndex = this.getTowerButtonIndex(x, y);
-        if (towerIndex !== -1) {
-            this.selectedType = this.buttons[towerIndex];
-            this.selectedTower = null;
-            this.soundManager.playClick();
-            return;
-        }
-
-        if (this.selectedTower) {
-            const choices = this.selectedTower.getUpgradeChoices();
-            for (let i = 0; i < choices.length; i++) {
-                const button = this.layout.upgradeButtons[i];
-                if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
-                    this.tryUpgradeTower(choices[i].id);
-                    return;
-                }
-            }
-
-            const sellButton = this.layout.sellButton;
-            if (x >= sellButton.x && x <= sellButton.x + sellButton.width && y >= sellButton.y && y <= sellButton.y + sellButton.height) {
-                this.sellSelectedTower();
-                return;
-            }
-        }
 
         const clickedTower = this.getTowerAt(x, y);
         if (clickedTower) {
@@ -296,26 +282,6 @@ export default class GameScene {
         this.hoveredEnemy = null;
         this.hoveredTower = null;
 
-        const overlayAction = this.getOverlayButtonAt(x, y);
-        if (overlayAction) {
-            this.hoveredId = overlayAction;
-            this.canvas.style.cursor = "pointer";
-            return;
-        }
-
-        const towerIndex = this.getTowerButtonIndex(x, y);
-        if (towerIndex !== -1) {
-            this.hoveredId = `tower-${this.buttons[towerIndex]}`;
-            this.canvas.style.cursor = "pointer";
-            return;
-        }
-
-        const hoveredUpgrade = this.getHoveredUpgradeButton(x, y);
-        if (hoveredUpgrade) {
-            this.hoveredId = hoveredUpgrade;
-            this.canvas.style.cursor = "pointer";
-            return;
-        }
 
         const hoveredTower = this.getTowerAt(x, y);
         if (hoveredTower) {
@@ -421,23 +387,61 @@ export default class GameScene {
         for (const enemy of this.enemies) enemy.render(ctx);
         for (const number of this.damageNumbers) this.drawDamageNumber(ctx, number);
 
-        this.drawHud(ctx);
-        this.drawTowerDock(ctx);
-        this.drawSidebar(ctx);
         this.drawHoverTooltip(ctx);
+        this.updateDomUi();
+    }
 
-        if (this.gameOver) this.drawOverlay(ctx, "Defeat");
-        if (this.victory) this.drawOverlay(ctx, "Victory");
+    updateDomUi() {
+        const selectedTowerSummary = this.selectedTower
+            ? (() => {
+                const stats = this.selectedTower.getDisplayStats();
+                const upgradeCost = this.selectedTower.getUpgradeCost();
+                return {
+                    name: stats.name,
+                    level: stats.level,
+                    role: TOWER_METADATA[this.selectedTower.type].role,
+                    ability: stats.ability,
+                    damage: stats.damage,
+                    range: stats.range,
+                    rate: stats.rate,
+                    invested: stats.invested,
+                    sellValue: stats.sellValue,
+                    upgradeCostText: upgradeCost == null ? "Maxed" : upgradeCost,
+                    upgrades: this.selectedTower.getUpgradeChoices().map((choice) => ({
+                        id: choice.id,
+                        label: choice.label,
+                        affordable: this.gold >= (this.selectedTower.getUpgradeCost() ?? Infinity)
+                    }))
+                };
+            })()
+            : null;
+
+        const totalPending = this.pendingWave.length + this.enemies.length;
+        const totalWaveUnits = (this.currentLevel?.data?.waves?.[this.waveIndex] || []).length || totalPending || 1;
+        const pressure = totalPending / totalWaveUnits;
+
+        this.domUI.updateGame({
+            gold: this.gold,
+            lives: this.lives,
+            waveIndex: Math.min(this.waveIndex + 1, this.currentLevel.data.waves.length),
+            totalWaves: this.currentLevel.data.waves.length,
+            levelName: this.currentLevel.name,
+            pendingWaveBonus: this.pendingWaveBonus,
+            pressure,
+            selectedType: this.selectedType,
+            selectedTowerSummary,
+            buttons: this.buttons.map((type) => ({ type, selected: this.selectedType === type, cost: this.towerCosts[type] })),
+            gameOver: this.gameOver,
+            victory: this.victory
+        });
     }
 
     drawMap(ctx) {
-        const canvasHeight = this.canvas.logicalHeight ?? this.canvas.height;
-        const canvasWidth = this.canvas.logicalWidth ?? this.canvas.width;
-        const backgroundGradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+        const backgroundGradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
         backgroundGradient.addColorStop(0, this.terrain.background);
         backgroundGradient.addColorStop(1, this.darkenColor(this.terrain.background, 0.22));
         ctx.fillStyle = backgroundGradient;
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.drawPath(ctx, this.terrain.pathOuter, 34);
         this.drawPath(ctx, this.terrain.pathInner, 24);
@@ -542,7 +546,7 @@ export default class GameScene {
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = number.color;
-        ctx.font = "700 13px Inter";
+        ctx.font = "700 15px Inter";
         ctx.fillText(`${number.value}`, number.x, number.y);
         ctx.restore();
     }
@@ -577,15 +581,15 @@ export default class GameScene {
 
             ctx.save();
             ctx.fillStyle = stat.accent;
-            ctx.font = "700 9px Inter";
+            ctx.font = "700 11px Inter";
             ctx.fillText(stat.label.toUpperCase(), x + 14, topBar.y + 28);
             ctx.fillStyle = "#f8fbff";
-            ctx.font = "700 16px Inter";
+            ctx.font = "700 18px Inter";
             ctx.fillText(stat.value, x + 14, topBar.y + 50);
             ctx.restore();
         });
 
-        const progressRect = { x: topBar.x + topBar.width - 232, y: topBar.y + 24, width: 190, height: 10 };
+        const progressRect = { x: topBar.x + topBar.width - 258, y: topBar.y + 30, width: 214, height: 12 };
         const totalInWave = this.currentLevel.data.waves[Math.min(this.waveIndex, this.currentLevel.data.waves.length - 1)]?.length ?? 1;
         const progressed = totalInWave === 0 ? 1 : 1 - this.pendingWave.length / totalInWave;
         this.ui.drawMeter(ctx, progressRect, this.victory ? 1 : progressed, {
@@ -599,11 +603,11 @@ export default class GameScene {
         ctx.textAlign = "center";
         ctx.fillStyle = "#f8fbff";
         ctx.font = "700 18px Cinzel";
-        ctx.fillText(this.currentLevel.name, topBar.x + topBar.width * 0.56, topBar.y + 26);
+        ctx.fillText(this.currentLevel.name, topBar.x + topBar.width * 0.56, topBar.y + 30);
         ctx.fillStyle = "rgba(194, 206, 223, 0.72)";
         ctx.font = "500 12px Inter";
-        ctx.fillText(`Next clear bonus ${this.pendingWaveBonus}`, topBar.x + topBar.width * 0.56, topBar.y + 42);
-        ctx.fillText("Wave pressure", progressRect.x + progressRect.width / 2, topBar.y + 16);
+        ctx.fillText(`Next clear bonus ${this.pendingWaveBonus}`, topBar.x + topBar.width * 0.56, topBar.y + 50);
+        ctx.fillText("Wave pressure", progressRect.x + progressRect.width / 2, topBar.y + 20);
         ctx.restore();
     }
 
@@ -618,11 +622,11 @@ export default class GameScene {
 
         ctx.save();
         ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 11px Inter";
-        ctx.fillText("Tower Dock", towerDock.x + 12, towerDock.y + 16);
+        ctx.font = "700 12px Inter";
+        ctx.fillText("Tower Dock", towerDock.x + 16, towerDock.y + 18);
         ctx.fillStyle = "rgba(194, 206, 223, 0.68)";
-        ctx.font = "500 10px Inter";
-        ctx.fillText("Pick a blueprint, then place it on a marked build tile.", towerDock.x + 12, towerDock.y + 28);
+        ctx.font = "500 11px Inter";
+        ctx.fillText("Pick a blueprint, then place it on a marked build tile.", towerDock.x + 16, towerDock.y + 34);
         ctx.restore();
 
         towerButtonRects.forEach((rect, index) => {
@@ -652,17 +656,17 @@ export default class GameScene {
             ctx.arc(rect.x + rect.width - 22, rect.y + 18, 18, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = meta.accent;
-            ctx.font = "700 9px Inter";
-            ctx.fillText(meta.shortLabel, rect.x + 10, rect.y + 18);
-            ctx.fillStyle = "#f8fbff";
-            ctx.font = "700 13px Inter";
-            ctx.fillText(meta.label, rect.x + 10, rect.y + 34);
-            ctx.fillStyle = "rgba(194, 206, 223, 0.72)";
-            ctx.font = "500 10px Inter";
-            ctx.fillText(meta.role, rect.x + 10, rect.y + 48);
-            ctx.fillStyle = active ? "#f1ca72" : "#f8fbff";
             ctx.font = "700 11px Inter";
-            ctx.fillText(`${this.towerCosts[type]} gold`, rect.x + 10, rect.y + 66);
+            ctx.fillText(meta.shortLabel, rect.x + 12, rect.y + 20);
+            ctx.fillStyle = "#f8fbff";
+            ctx.font = "700 15px Inter";
+            ctx.fillText(meta.label, rect.x + 12, rect.y + 40);
+            ctx.fillStyle = "rgba(194, 206, 223, 0.72)";
+            ctx.font = "500 11px Inter";
+            ctx.fillText(meta.role, rect.x + 12, rect.y + 58);
+            ctx.fillStyle = active ? "#f1ca72" : "#f8fbff";
+            ctx.font = "700 12px Inter";
+            ctx.fillText(`${this.towerCosts[type]} gold`, rect.x + 12, rect.y + 78);
             ctx.restore();
         });
     }
@@ -678,11 +682,11 @@ export default class GameScene {
 
         ctx.save();
         ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 11px Inter";
-        ctx.fillText("Command Panel", sidebar.x + 14, sidebar.y + 18);
+        ctx.font = "700 12px Inter";
+        ctx.fillText("Command Panel", sidebar.x + 16, sidebar.y + 20);
         ctx.fillStyle = "rgba(194, 206, 223, 0.68)";
-        ctx.font = "500 10px Inter";
-        ctx.fillText("Inspect selected towers or preview the active blueprint.", sidebar.x + 14, sidebar.y + 30);
+        ctx.font = "500 11px Inter";
+        ctx.fillText("Inspect selected towers or preview the active blueprint.", sidebar.x + 16, sidebar.y + 36);
         ctx.restore();
 
         if (this.selectedTower) {
@@ -709,25 +713,25 @@ export default class GameScene {
         ctx.arc(sidebar.x + sidebar.width - 44, sidebar.y + 44, 28, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 18px Cinzel";
+        ctx.font = "700 22px Cinzel";
         ctx.fillText(meta.label, sidebar.x + 16, sidebar.y + 62);
         ctx.fillStyle = "rgba(194, 206, 223, 0.74)";
-        ctx.font = "500 12px Inter";
+        ctx.font = "500 13px Inter";
         ctx.fillText(meta.role, sidebar.x + 16, sidebar.y + 86);
-        ctx.fillText(preview.getAbilitySummary(), sidebar.x + 16, sidebar.y + 100);
+        ctx.fillText(preview.getAbilitySummary(), sidebar.x + 16, sidebar.y + 108);
         ctx.restore();
 
-        this.drawStatGrid(ctx, stats, sidebar.x + 12, sidebar.y + 118, sidebar.width - 24);
+        this.drawStatGrid(ctx, stats, sidebar.x + 14, sidebar.y + 132, sidebar.width - 28);
 
         ctx.save();
         ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 11px Inter";
-        ctx.fillText("Placement", sidebar.x + 14, sidebar.y + 218);
+        ctx.font = "700 12px Inter";
+        ctx.fillText("Placement", sidebar.x + 16, sidebar.y + 252);
         ctx.fillStyle = "rgba(194, 206, 223, 0.74)";
-        ctx.font = "500 12px Inter";
-        ctx.fillText("Move to a highlighted build tile to preview range.", sidebar.x + 14, sidebar.y + 240);
-        ctx.fillText("Click once to place the tower if you have enough gold.", sidebar.x + 14, sidebar.y + 258);
-        ctx.fillText("Select an existing tower to inspect upgrades and sell value.", sidebar.x + 14, sidebar.y + 288);
+        ctx.font = "500 13px Inter";
+        ctx.fillText("Move to a highlighted build tile to preview range.", sidebar.x + 16, sidebar.y + 278);
+        ctx.fillText("Click once to place the tower if you have enough gold.", sidebar.x + 16, sidebar.y + 300);
+        ctx.fillText("Select an existing tower to inspect upgrades and sell value.", sidebar.x + 16, sidebar.y + 334);
         ctx.restore();
     }
 
@@ -744,12 +748,12 @@ export default class GameScene {
         ctx.arc(sidebar.x + sidebar.width - 44, sidebar.y + 44, 28, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 18px Cinzel";
+        ctx.font = "700 22px Cinzel";
         ctx.fillText(stats.name, sidebar.x + 16, sidebar.y + 62);
         ctx.fillStyle = "rgba(194, 206, 223, 0.74)";
-        ctx.font = "500 12px Inter";
+        ctx.font = "500 13px Inter";
         ctx.fillText(`Level ${stats.level} ${meta.role}`, sidebar.x + 16, sidebar.y + 86);
-        ctx.fillText(stats.ability, sidebar.x + 16, sidebar.y + 100);
+        ctx.fillText(stats.ability, sidebar.x + 16, sidebar.y + 108);
         ctx.restore();
 
         this.drawStatGrid(ctx, [
@@ -757,16 +761,16 @@ export default class GameScene {
             { label: "Range", value: `${stats.range}` },
             { label: "Rate", value: `${stats.rate}` },
             { label: "Sell", value: `${stats.sellValue}` }
-        ], sidebar.x + 12, sidebar.y + 118, sidebar.width - 24);
+        ], sidebar.x + 14, sidebar.y + 132, sidebar.width - 28);
 
         ctx.save();
         ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 11px Inter";
-        ctx.fillText("Upgrade Paths", sidebar.x + 14, sidebar.y + 218);
+        ctx.font = "700 12px Inter";
+        ctx.fillText("Upgrade Paths", sidebar.x + 16, sidebar.y + 252);
         ctx.fillStyle = "rgba(194, 206, 223, 0.74)";
         ctx.font = "500 12px Inter";
-        ctx.fillText(cost != null ? `Upgrade cost ${cost}` : "Max level reached", sidebar.x + 14, sidebar.y + 236);
-        ctx.fillText(`Invested ${stats.invested}`, sidebar.x + 128, sidebar.y + 236);
+        ctx.fillText(cost != null ? `Upgrade cost ${cost}` : "Max level reached", sidebar.x + 16, sidebar.y + 270);
+        ctx.fillText(`Invested ${stats.invested}`, sidebar.x + 148, sidebar.y + 270);
         ctx.restore();
 
         for (let i = 0; i < choices.length; i++) {
@@ -790,7 +794,7 @@ export default class GameScene {
     drawStatGrid(ctx, stats, startX, startY, width) {
         const gap = 10;
         const cardWidth = Math.floor((width - gap) / 2);
-        const cardHeight = 46;
+        const cardHeight = 52;
 
         stats.forEach((stat, index) => {
             const column = index % 2;
@@ -807,10 +811,10 @@ export default class GameScene {
 
             ctx.save();
             ctx.fillStyle = "rgba(194, 206, 223, 0.66)";
-            ctx.font = "700 9px Inter";
+            ctx.font = "700 10px Inter";
             ctx.fillText(stat.label.toUpperCase(), x + 12, y + 18);
             ctx.fillStyle = "#f8fbff";
-            ctx.font = "700 16px Inter";
+            ctx.font = "700 18px Inter";
             ctx.fillText(stat.value, x + 12, y + 38);
             ctx.restore();
         });
@@ -859,11 +863,9 @@ export default class GameScene {
     }
 
     drawOverlay(ctx, text) {
-        const canvasWidth = this.canvas.logicalWidth ?? this.canvas.width;
-        const canvasHeight = this.canvas.logicalHeight ?? this.canvas.height;
         ctx.save();
         ctx.fillStyle = "rgba(3, 8, 16, 0.76)";
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         ctx.restore();
 
         const { overlay, overlayButtons } = this.layout;
@@ -877,14 +879,14 @@ export default class GameScene {
         ctx.save();
         ctx.textAlign = "center";
         ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 34px Cinzel";
-        ctx.fillText(text, overlay.x + overlay.width / 2, overlay.y + 60);
+        ctx.font = "700 42px Cinzel";
+        ctx.fillText(text, overlay.x + overlay.width / 2, overlay.y + 72);
         ctx.fillStyle = "rgba(228, 236, 248, 0.76)";
-        ctx.font = "500 13px Inter";
+        ctx.font = "500 16px Inter";
         ctx.fillText(
             text === "Victory" ? "The frontier holds. Push on to the next route." : "The line collapsed. Rebuild and tighten coverage.",
             overlay.x + overlay.width / 2,
-            overlay.y + 88
+            overlay.y + 108
         );
         ctx.restore();
 

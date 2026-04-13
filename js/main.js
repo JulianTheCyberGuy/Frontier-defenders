@@ -4,21 +4,14 @@ import SoundManager from "./engine/SoundManager.js";
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from "./config.js";
 
 const canvas = document.getElementById("gameCanvas");
-canvas.logicalWidth = DESIGN_WIDTH;
-canvas.logicalHeight = DESIGN_HEIGHT;
+const viewport = document.getElementById("gameViewport");
+canvas.width = DESIGN_WIDTH;
+canvas.height = DESIGN_HEIGHT;
 canvas.style.touchAction = "none";
 
-function applyCanvasResolution() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.renderScale = dpr;
-    canvas.width = Math.round(DESIGN_WIDTH * dpr);
-    canvas.height = Math.round(DESIGN_HEIGHT * dpr);
-}
-
 function resizeCanvasDisplay() {
-    const shellPadding = window.innerWidth <= 900 ? 24 : 36;
-    const viewportWidth = Math.max(window.innerWidth - shellPadding, 320);
-    const viewportHeight = Math.max(window.innerHeight - shellPadding, 240);
+    const viewportWidth = Math.max(window.innerWidth - 32, 320);
+    const viewportHeight = Math.max(window.innerHeight - 32, 240);
     const aspectRatio = DESIGN_WIDTH / DESIGN_HEIGHT;
 
     let displayWidth = viewportWidth;
@@ -29,9 +22,12 @@ function resizeCanvasDisplay() {
         displayWidth = displayHeight * aspectRatio;
     }
 
-    canvas.style.width = `${Math.floor(displayWidth)}px`;
-    canvas.style.height = `${Math.floor(displayHeight)}px`;
-    applyCanvasResolution();
+    const widthPx = `${Math.floor(displayWidth)}px`;
+    const heightPx = `${Math.floor(displayHeight)}px`;
+    viewport.style.width = widthPx;
+    viewport.style.height = heightPx;
+    canvas.style.width = widthPx;
+    canvas.style.height = heightPx;
 }
 
 resizeCanvasDisplay();
