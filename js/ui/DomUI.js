@@ -7,12 +7,221 @@ export default class DomUI {
         this.mode = null;
         this.callbacks = {};
         this.stateKey = "";
+        this.settingsOpen = false;
         this.handleClick = this.handleClick.bind(this);
     }
 
+    clear() {
+        if (!this.root) return;
+        this.unbind();
+        this.root.innerHTML = "";
+        this.root.classList.remove("is-visible");
+        this.root.onclick = null;
+    }
+
+    hide() {
+        this.clear();
+        this.mode = null;
+        this.callbacks = {};
+        this.stateKey = "";
+    }
+
+    showMainMenu({ onPlay, onLevelSelect, onOpenSettings, soundManager }) {
+        if (!this.root) return;
+
+        this.hide();
+        this.mode = "menu";
+        this.root.classList.add("is-visible");
+        this.root.innerHTML = `
+            <div class="dom-screen main-menu-screen">
+                <section class="dom-panel hero-panel">
+                    <div>
+                        <p class="hero-kicker">Dark fantasy tower defense</p>
+                        <h1 class="hero-title">Frontier<br>Defenders</h1>
+                        <p class="hero-copy">Hold ancient roads, layer your defenses, and survive each wave with cleaner tactical control.</p>
+                    </div>
+                    <div>
+                        <div class="hero-actions">
+                            <button class="dom-button is-primary" data-action="play">Play</button>
+                            <button class="dom-button" data-action="levels">Level Select</button>
+                            <button class="dom-button is-ghost" data-action="settings">Settings</button>
+                        </div>
+                        <div class="hero-pills">
+                            <span class="dom-pill is-accent">HTML menu UI</span>
+                            <span class="dom-pill">Sharper text</span>
+                            <span class="dom-pill">Responsive layout</span>
+                        </div>
+                    </div>
+                </section>
+                <div class="side-stack">
+                    <section class="dom-panel info-card">
+                        <h2>Why this feels cleaner</h2>
+                        <ul class="info-list">
+                            <li>Text now renders in HTML instead of canvas, so it stays crisp.</li>
+                            <li>Buttons, spacing, and panel sizing scale better on different screens.</li>
+                            <li>The battlefield can stay the focus while menus carry the heavier UI work.</li>
+                        </ul>
+                    </section>
+                    <section class="dom-panel info-card">
+                        <h3>Current build</h3>
+                        <ul class="info-list">
+                            <li>Five tower classes with upgrades and combat roles.</li>
+                            <li>Three battlefields with custom paths and wave sets.</li>
+                            <li>Custom engine flow with canvas gameplay intact.</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+        `;
+
+        this.attachRootClick((event) => {
+            const action = event.target.closest("[data-action]")?.dataset.action;
+            if (!action) return;
+            if (action === "play") onPlay();
+            if (action === "levels") onLevelSelect();
+            if (action === "settings") onOpenSettings();
+        });
+
+        if (this.settingsOpen) {
+            this.renderSettingsModal({ soundManager, onClose: () => this.closeSettings(() => this.showMainMenu({ onPlay, onLevelSelect, onOpenSettings, soundManager })) });
+        }
+    }
+
+    showLevelSelect({ levels, onBack, onPlayLevel, onOpenSettings, soundManager }) {
+        if (!this.root) return;
+
+        this.hide();
+        this.mode = "level-select";
+        const cards = levels.map((level) => {
+            const meta = level.locked
+                ? `<span class="dom-pill">Locked</span>`
+                : `<span class="dom-pill is-accent">Ready</span>`;
+
+            return `
+                <article class="dom-panel level-card ${level.locked ? "is-locked" : ""}">
+                    <div class="level-card-top">
+                        <div class="level-badge" style="color:${level.accent}; background:${level.accent};"></div>
+                        <div>
+                            <h3>${level.label}</h3>
+                            <p>${level.subtitle}</p>
+                        </div>
+                        <div class="level-meta">
+                            <span class="dom-pill">Level ${level.id + 1}</span>
+                            ${meta}
+                        </div>
+                        <p>${level.terrain}</p>
+                        <p>${level.waves}</p>
+                    </div>
+                    <div class="level-card-actions">
+                        <button class="dom-button ${level.locked ? "" : "is-primary"}" data-level-id="${level.id}" ${level.locked ? "disabled" : ""}>${level.locked ? "Locked" : "Deploy Here"}</button>
+                    </div>
+                </article>
+            `;
+        }).join("");
+
+        this.root.classList.add("is-visible");
+        this.root.innerHTML = `
+            <div class="dom-screen level-select-screen">
+                <section class="dom-panel screen-header">
+                    <div>
+                        <h2>Choose Your Front</h2>
+                        <p class="screen-subtitle">Pick a battlefield, review its pressure, and deploy without fighting blurry canvas text.</p>
+                    </div>
+                    <div class="screen-actions">
+                        <button class="dom-button" data-action="back">Main Menu</button>
+                        <button class="dom-button is-ghost" data-action="settings">Settings</button>
+                    </div>
+                </section>
+                <section class="level-grid">${cards}</section>
+            </div>
+        `;
+
+        this.attachRootClick((event) => {
+            const action = event.target.closest("[data-action]")?.dataset.action;
+            if (action === "back") onBack();
+            if (action === "settings") onOpenSettings();
+
+            const levelButton = event.target.closest("[data-level-id]");
+            if (levelButton && !levelButton.disabled) {
+                onPlayLevel(Number(levelButton.dataset.levelId));
+            }
+        });
+
+        if (this.settingsOpen) {
+            this.renderSettingsModal({ soundManager, onClose: () => this.closeSettings(() => this.showLevelSelect({ levels, onBack, onPlayLevel, onOpenSettings, soundManager })) });
+        }
+    }
+
+    openSettings(renderCallback) {
+        this.settingsOpen = true;
+        renderCallback();
+    }
+
+    closeSettings(renderCallback) {
+        this.settingsOpen = false;
+        if (typeof renderCallback === "function") {
+            renderCallback();
+            return;
+        }
+        this.root?.querySelector(".modal-scrim")?.remove();
+    }
+
+    renderSettingsModal({ soundManager, onClose }) {
+        if (!this.root) return;
+
+        this.root.querySelector(".modal-scrim")?.remove();
+        const sliderValue = Math.round((soundManager?.masterVolume ?? 0.6) * 100);
+        const modal = document.createElement("div");
+        modal.className = "modal-scrim";
+        modal.innerHTML = `
+            <div class="settings-modal">
+                <h3 class="settings-title">Settings</h3>
+                <p class="settings-copy">Use HTML controls for cleaner presentation while gameplay stays in canvas.</p>
+                <div class="setting-block">
+                    <div class="setting-row">
+                        <span class="setting-label">Master volume</span>
+                        <span class="setting-value" data-role="volume-value">${sliderValue}%</span>
+                    </div>
+                    <input class="volume-slider" type="range" min="0" max="100" step="5" value="${sliderValue}" data-role="volume-slider">
+                </div>
+                <div class="screen-actions">
+                    <button class="dom-button" data-action="mute-toggle">${sliderValue === 0 ? "Unmute" : "Mute"}</button>
+                    <button class="dom-button is-primary" data-action="close-settings">Close</button>
+                </div>
+            </div>
+        `;
+
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) onClose();
+        });
+
+        modal.querySelector("[data-role='volume-slider']")?.addEventListener("input", (event) => {
+            const value = Number(event.target.value);
+            soundManager?.setMasterVolume?.(value / 100);
+            modal.querySelector("[data-role='volume-value']").textContent = `${value}%`;
+            modal.querySelector("[data-action='mute-toggle']").textContent = value === 0 ? "Unmute" : "Mute";
+        });
+
+        modal.querySelector("[data-action='mute-toggle']")?.addEventListener("click", () => {
+            const nextValue = (soundManager?.masterVolume ?? 0) > 0 ? 0 : 0.6;
+            soundManager?.setMasterVolume?.(nextValue);
+            const percentage = Math.round(nextValue * 100);
+            modal.querySelector("[data-role='volume-slider']").value = String(percentage);
+            modal.querySelector("[data-role='volume-value']").textContent = `${percentage}%`;
+            modal.querySelector("[data-action='mute-toggle']").textContent = percentage === 0 ? "Unmute" : "Mute";
+        });
+
+        modal.querySelector("[data-action='close-settings']")?.addEventListener("click", onClose);
+        this.root.appendChild(modal);
+    }
+
     showGame(callbacks = {}) {
+        if (!this.root) return;
+
+        this.hide();
         this.mode = "game";
         this.callbacks = callbacks;
+        this.root.classList.add("is-visible");
         this.root.innerHTML = `
             <div class="game-ui" data-mode="game">
                 <div class="game-ui-top">
@@ -61,20 +270,17 @@ export default class DomUI {
         this.bind();
     }
 
-    hide() {
-        this.unbind();
-        this.root.innerHTML = "";
-        this.mode = null;
-        this.callbacks = {};
-        this.stateKey = "";
-    }
-
     bind() {
-        this.root.addEventListener("click", this.handleClick);
+        this.root?.addEventListener("click", this.handleClick);
     }
 
     unbind() {
-        this.root.removeEventListener("click", this.handleClick);
+        this.root?.removeEventListener("click", this.handleClick);
+    }
+
+    attachRootClick(handler) {
+        if (!this.root) return;
+        this.root.onclick = handler;
     }
 
     handleClick(event) {
@@ -99,7 +305,7 @@ export default class DomUI {
     }
 
     updateGame(state) {
-        if (this.mode !== "game") return;
+        if (this.mode !== "game" || !this.root) return;
 
         const panelState = this.buildPanelState(state);
         const key = JSON.stringify({

@@ -10,12 +10,12 @@ import UIRenderer from "../ui/UIRenderer.js";
 import DomUI from "../ui/DomUI.js";
 
 export default class GameScene {
-    constructor(canvas, sceneManager, soundManager) {
+    constructor(canvas, sceneManager, soundManager, domUi = null) {
         this.canvas = canvas;
         this.sceneManager = sceneManager;
         this.soundManager = soundManager;
         this.ui = new UIRenderer(canvas);
-        this.domUI = new DomUI(document.getElementById("dom-ui-root"));
+        this.domUI = domUi ?? new DomUI(document.getElementById("dom-ui-root"));
 
         this.levels = [
             { id: 0, name: level1.name, data: level1 },
@@ -235,8 +235,8 @@ export default class GameScene {
     handleOverlayAction(action) {
         this.soundManager.playConfirm();
         if (action === "restart") this.loadLevel(this.currentLevelIndex);
-        if (action === "levels") this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
-        if (action === "menu") this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager));
+        if (action === "levels") this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager, this.domUI));
+        if (action === "menu") this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager, this.domUI));
     }
 
     handleClick(event) {
