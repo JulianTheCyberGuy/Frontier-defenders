@@ -1,8 +1,8 @@
 import Enemy from "../core/Enemy.js";
 import Tower from "../core/Tower.js";
-import Projectile from "../core/Projectile.js";
 import level1 from "../levels/level1.js";
 import level2 from "../levels/level2.js";
+import level3 from "../levels/level3.js";
 import MainMenuScene from "./MainMenuScene.js";
 import LevelSelectScene from "./LevelSelectScene.js";
 
@@ -13,53 +13,15 @@ export default class GameScene {
         this.soundManager = soundManager;
 
         this.levels = [
-            {
-                id: 0,
-                name: "Forest Road",
-                data: level1,
-                waves: [
-                    ["grunt", "grunt", "scout", "grunt", "scout"],
-                    ["grunt", "grunt", "tank", "scout", "grunt", "scout"],
-                    ["tank", "grunt", "scout", "tank", "grunt", "scout", "scout"]
-                ]
-            },
-            {
-                id: 1,
-                name: "Ruined Keep",
-                data: level2,
-                waves: [
-                    ["grunt", "scout", "grunt", "tank", "scout"],
-                    ["tank", "grunt", "scout", "scout", "tank", "grunt"],
-                    ["tank", "tank", "scout", "grunt", "scout", "grunt", "tank"]
-                ]
-            }
+            { id: 0, name: level1.name, data: level1 },
+            { id: 1, name: level2.name, data: level2 },
+            { id: 2, name: level3.name, data: level3 }
         ];
 
         this.enemyTypes = {
-            scout: {
-                name: "Scout",
-                hp: 55,
-                speed: 90,
-                reward: 8,
-                radius: 8,
-                color: "#ff7b72"
-            },
-            grunt: {
-                name: "Grunt",
-                hp: 120,
-                speed: 52,
-                reward: 12,
-                radius: 10,
-                color: "#d29922"
-            },
-            tank: {
-                name: "Tank",
-                hp: 240,
-                speed: 34,
-                reward: 20,
-                radius: 13,
-                color: "#8b949e"
-            }
+            scout: { name: "Scout", hp: 55, speed: 90, reward: 8, radius: 8, color: "#ff7b72" },
+            grunt: { name: "Grunt", hp: 120, speed: 52, reward: 12, radius: 10, color: "#d29922" },
+            tank: { name: "Tank", hp: 240, speed: 34, reward: 20, radius: 13, color: "#8b949e" }
         };
 
         this.towerCosts = {
@@ -89,6 +51,7 @@ export default class GameScene {
 
         this.damageNumbers = [];
         this.impactEffects = [];
+        this.occupiedBuildTiles = new Set();
 
         this.handleClick = this.handleClick.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -110,13 +73,15 @@ export default class GameScene {
         this.currentLevelIndex = index;
         this.currentLevel = this.levels[index];
         this.path = this.currentLevel.data.path;
+        this.buildTiles = this.currentLevel.data.buildTiles;
+        this.terrain = this.currentLevel.data.terrain;
 
         this.enemies = [];
         this.towers = [];
         this.projectiles = [];
-
         this.damageNumbers = [];
         this.impactEffects = [];
+        this.occupiedBuildTiles = new Set();
 
         this.gold = 250;
         this.lives = 20;
@@ -135,7 +100,7 @@ export default class GameScene {
     }
 
     startWave() {
-        if (this.waveIndex >= this.currentLevel.waves.length) {
+        if (this.waveIndex >= this.currentLevel.data.waves.length) {
             this.victory = true;
             if (!this.endSoundPlayed) {
                 this.soundManager.playVictory();
@@ -144,37 +109,20 @@ export default class GameScene {
             return;
         }
 
-        this.pendingWave = [...this.currentLevel.waves[this.waveIndex]];
+        this.pendingWave = [...this.currentLevel.data.waves[this.waveIndex]];
         this.spawnTimer = 0;
     }
 
     spawnEnemy(role) {
-        const stats = this.enemyTypes[role];
-        this.enemies.push(new Enemy(this.path, stats));
+        this.enemies.push(new Enemy(this.path, this.enemyTypes[role]));
     }
 
     spawnDamageNumber(x, y, value, color = "#ffffff") {
-        this.damageNumbers.push({
-            x,
-            y,
-            value,
-            color,
-            life: 0.6,
-            maxLife: 0.6,
-            vy: -28
-        });
+        this.damageNumbers.push({ x, y, value, color, life: 0.6, maxLife: 0.6, vy: -28 });
     }
 
     spawnImpact(x, y, color = "#ffffff", maxRadius = 12) {
-        this.impactEffects.push({
-            x,
-            y,
-            color,
-            life: 0.18,
-            maxLife: 0.18,
-            radius: 4,
-            maxRadius
-        });
+        this.impactEffects.push({ x, y, color, life: 0.18, maxLife: 0.18, radius: 4, maxRadius });
     }
 
     tryUpgradeTower(pathId) {
@@ -196,10 +144,7 @@ export default class GameScene {
         for (let i = 0; i < this.buttons.length; i++) {
             const startX = 120 * i + 320;
             const endX = startX + 110;
-
-            if (x >= startX && x <= endX) {
-                return i;
-            }
+            if (x >= startX && x <= endX) return i;
         }
 
         return null;
@@ -209,12 +154,7 @@ export default class GameScene {
         if (!this.gameOver && !this.victory) return null;
 
         for (const [key, button] of Object.entries(this.overlayButtons)) {
-            if (
-                x >= button.x &&
-                x <= button.x + button.width &&
-                y >= button.y &&
-                y <= button.y + button.height
-            ) {
+            if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
                 return key;
             }
         }
@@ -229,17 +169,29 @@ export default class GameScene {
 
         for (let i = 0; i < choices.length; i++) {
             const button = this.upgradeButtons[i];
-            if (
-                x >= button.x &&
-                x <= button.x + button.width &&
-                y >= button.y &&
-                y <= button.y + button.height
-            ) {
+            if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
                 return `upgrade-${choices[i].id}`;
             }
         }
 
         return null;
+    }
+
+    getBuildTileAt(x, y) {
+        const radius = 24;
+
+        for (let i = 0; i < this.buildTiles.length; i++) {
+            const tile = this.buildTiles[i];
+            if (Math.hypot(tile.x - x, tile.y - y) <= radius) {
+                return { tile, index: i };
+            }
+        }
+
+        return null;
+    }
+
+    canPlaceTowerOnTile(index) {
+        return !this.occupiedBuildTiles.has(index);
     }
 
     handleClick(e) {
@@ -251,22 +203,13 @@ export default class GameScene {
         if (overlayAction) {
             this.soundManager.playConfirm();
 
-            if (overlayAction === "restart") {
-                this.loadLevel(this.currentLevelIndex);
-            }
-
+            if (overlayAction === "restart") this.loadLevel(this.currentLevelIndex);
             if (overlayAction === "levels") {
-                this.sceneManager.changeScene(
-                    new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager)
-                );
+                this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
             }
-
             if (overlayAction === "menu") {
-                this.sceneManager.changeScene(
-                    new MainMenuScene(this.canvas, this.sceneManager, this.soundManager)
-                );
+                this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager));
             }
-
             return;
         }
 
@@ -281,15 +224,9 @@ export default class GameScene {
 
         if (this.selectedTower) {
             const choices = this.selectedTower.getUpgradeChoices();
-
             for (let i = 0; i < choices.length; i++) {
                 const button = this.upgradeButtons[i];
-                if (
-                    x >= button.x &&
-                    x <= button.x + button.width &&
-                    y >= button.y &&
-                    y <= button.y + button.height
-                ) {
+                if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
                     this.tryUpgradeTower(choices[i].id);
                     return;
                 }
@@ -304,11 +241,18 @@ export default class GameScene {
             }
         }
 
+        const buildSpot = this.getBuildTileAt(x, y);
+        if (!buildSpot) return;
+        if (!this.canPlaceTowerOnTile(buildSpot.index)) return;
+
         const cost = this.towerCosts[this.selectedType];
         if (this.gold < cost) return;
 
-        const tower = new Tower(x, y, this.selectedType);
+        const tower = new Tower(buildSpot.tile.x, buildSpot.tile.y, this.selectedType);
+        tower.buildTileIndex = buildSpot.index;
+
         this.towers.push(tower);
+        this.occupiedBuildTiles.add(buildSpot.index);
         this.gold -= cost;
         this.selectedTower = tower;
         this.soundManager.playClick();
@@ -350,6 +294,13 @@ export default class GameScene {
             }
         }
 
+        const buildSpot = this.getBuildTileAt(x, y);
+        if (buildSpot && this.canPlaceTowerOnTile(buildSpot.index)) {
+            this.hoveredId = `build-${buildSpot.index}`;
+            this.canvas.style.cursor = "pointer";
+            return;
+        }
+
         this.canvas.style.cursor = "default";
     }
 
@@ -359,31 +310,17 @@ export default class GameScene {
             this.spawnTimer -= dt;
 
             if (this.pendingWave.length > 0 && this.spawnTimer <= 0) {
-                const nextRole = this.pendingWave.shift();
-                this.spawnEnemy(nextRole);
+                this.spawnEnemy(this.pendingWave.shift());
                 this.spawnTimer = this.spawnGap;
             }
 
-            for (const enemy of this.enemies) {
-                enemy.update(dt);
-            }
-
-            for (const tower of this.towers) {
-                tower.update(dt, this.enemies, this.projectiles, this);
-            }
-
-            for (const projectile of this.projectiles) {
-                projectile.update(dt);
-            }
+            for (const enemy of this.enemies) enemy.update(dt);
+            for (const tower of this.towers) tower.update(dt, this.enemies, this.projectiles, this);
+            for (const projectile of this.projectiles) projectile.update(dt);
 
             for (const enemy of this.enemies) {
-                if (enemy.dead) {
-                    this.gold += enemy.reward;
-                }
-
-                if (enemy.escaped) {
-                    this.lives -= 1;
-                }
+                if (enemy.dead) this.gold += enemy.reward;
+                if (enemy.escaped) this.lives -= 1;
             }
 
             this.enemies = this.enemies.filter(enemy => !enemy.dead && !enemy.escaped);
@@ -397,12 +334,7 @@ export default class GameScene {
                 }
             }
 
-            if (
-                this.pendingWave.length === 0 &&
-                this.enemies.length === 0 &&
-                !this.gameOver &&
-                !this.victory
-            ) {
+            if (this.pendingWave.length === 0 && this.enemies.length === 0 && !this.gameOver && !this.victory) {
                 this.waveIndex++;
                 this.startWave();
             }
@@ -417,7 +349,6 @@ export default class GameScene {
             number.life -= dt;
             number.y += number.vy * dt;
         }
-
         this.damageNumbers = this.damageNumbers.filter(number => number.life > 0);
     }
 
@@ -427,62 +358,61 @@ export default class GameScene {
             const progress = 1 - effect.life / effect.maxLife;
             effect.radius = 4 + (effect.maxRadius - 4) * progress;
         }
-
         this.impactEffects = this.impactEffects.filter(effect => effect.life > 0);
     }
 
     render(ctx) {
-        this.drawPath(ctx);
+        this.drawMap(ctx);
 
-        for (const impact of this.impactEffects) {
-            this.drawImpactEffect(ctx, impact);
-        }
-
-        for (const tower of this.towers) {
-            tower.render(ctx);
-        }
-
-        for (const projectile of this.projectiles) {
-            projectile.render(ctx);
-        }
-
-        for (const enemy of this.enemies) {
-            enemy.render(ctx);
-        }
-
-        for (const number of this.damageNumbers) {
-            this.drawDamageNumber(ctx, number);
-        }
+        for (const impact of this.impactEffects) this.drawImpactEffect(ctx, impact);
+        for (const tower of this.towers) tower.render(ctx);
+        for (const projectile of this.projectiles) projectile.render(ctx);
+        for (const enemy of this.enemies) enemy.render(ctx);
+        for (const number of this.damageNumbers) this.drawDamageNumber(ctx, number);
 
         this.drawTopBar(ctx);
         this.drawSelectedTowerPanel(ctx);
         this.drawLevelInfo(ctx);
 
-        if (this.gameOver) {
-            this.drawOverlay(ctx, "Defeat");
-        }
+        if (this.gameOver) this.drawOverlay(ctx, "Defeat");
+        if (this.victory) this.drawOverlay(ctx, "Victory");
+    }
 
-        if (this.victory) {
-            this.drawOverlay(ctx, "Victory");
+    drawMap(ctx) {
+        ctx.fillStyle = this.terrain.background;
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.drawPath(ctx, this.terrain.pathOuter, 34);
+        this.drawPath(ctx, this.terrain.pathInner, 24);
+
+        for (let i = 0; i < this.buildTiles.length; i++) {
+            const tile = this.buildTiles[i];
+            const occupied = this.occupiedBuildTiles.has(i);
+            const hovered = this.hoveredId === `build-${i}`;
+
+            ctx.fillStyle = occupied ? "rgba(80,80,80,0.20)" : hovered ? "rgba(200,255,200,0.25)" : this.terrain.buildTile;
+            ctx.strokeStyle = hovered ? "rgba(255,255,255,0.35)" : this.terrain.buildTileBorder;
+
+            ctx.beginPath();
+            ctx.arc(tile.x, tile.y, 24, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
         }
     }
 
-    drawPath(ctx) {
-        ctx.strokeStyle = "yellow";
-        ctx.lineWidth = 4;
+    drawPath(ctx, color, width) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
         ctx.beginPath();
         ctx.moveTo(this.path[0].x, this.path[0].y);
-
-        for (let i = 1; i < this.path.length; i++) {
-            ctx.lineTo(this.path[i].x, this.path[i].y);
-        }
-
+        for (let i = 1; i < this.path.length; i++) ctx.lineTo(this.path[i].x, this.path[i].y);
         ctx.stroke();
     }
 
     drawImpactEffect(ctx, effect) {
         const alpha = effect.life / effect.maxLife;
-
         ctx.save();
         ctx.strokeStyle = effect.color;
         ctx.globalAlpha = alpha;
@@ -495,7 +425,6 @@ export default class GameScene {
 
     drawDamageNumber(ctx, number) {
         const alpha = number.life / number.maxLife;
-
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = number.color;
@@ -513,10 +442,7 @@ export default class GameScene {
         ctx.fillText("Gold: " + this.gold, 10, 24);
         ctx.fillText("Lives: " + this.lives, 120, 24);
         ctx.fillText(
-            "Wave: " +
-            Math.min(this.waveIndex + 1, this.currentLevel.waves.length) +
-            "/" +
-            this.currentLevel.waves.length,
+            "Wave: " + Math.min(this.waveIndex + 1, this.currentLevel.data.waves.length) + "/" + this.currentLevel.data.waves.length,
             220,
             24
         );
@@ -553,21 +479,15 @@ export default class GameScene {
         ctx.fillText("Range: " + stats.range, 695, 138);
         ctx.fillText("Rate: " + stats.rate, 695, 160);
 
-        if (cost != null) {
-            ctx.fillText("Upgrade Cost: " + cost, 695, 182);
-        } else {
-            ctx.fillText("Max Level Reached", 695, 182);
-        }
+        if (cost != null) ctx.fillText("Upgrade Cost: " + cost, 695, 182);
+        else ctx.fillText("Max Level Reached", 695, 182);
 
         for (let i = 0; i < choices.length; i++) {
             const button = this.upgradeButtons[i];
             const enabled = this.gold >= (cost ?? 9999);
             const hovered = this.hoveredId === `upgrade-${choices[i].id}`;
 
-            ctx.fillStyle = enabled
-                ? hovered ? "#3d8a5d" : "#2c6e49"
-                : "#555";
-
+            ctx.fillStyle = enabled ? (hovered ? "#3d8a5d" : "#2c6e49") : "#555";
             ctx.fillRect(button.x, button.y, button.width, button.height);
 
             ctx.strokeStyle = "white";
@@ -583,6 +503,7 @@ export default class GameScene {
         ctx.fillStyle = "white";
         ctx.font = "14px Arial";
         ctx.fillText("Current Level: " + this.currentLevel.name, 10, 62);
+        ctx.fillText("Build on glowing circles only", 10, 82);
     }
 
     drawOverlay(ctx, text) {

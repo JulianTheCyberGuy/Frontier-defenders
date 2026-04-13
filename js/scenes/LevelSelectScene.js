@@ -8,8 +8,9 @@ export default class LevelSelectScene {
         this.soundManager = soundManager;
 
         this.levelButtons = [
-            { id: 0, label: "Forest Road", x: 340, y: 190, width: 280, height: 50 },
-            { id: 1, label: "Ruined Keep", x: 340, y: 270, width: 280, height: 50 }
+            { id: 0, label: "Forest Road", x: 340, y: 170, width: 280, height: 50 },
+            { id: 1, label: "Ruined Keep", x: 340, y: 245, width: 280, height: 50 },
+            { id: 2, label: "Lava Dungeon Gate", x: 340, y: 320, width: 280, height: 50 }
         ];
 
         this.backButton = { x: 20, y: 20, width: 120, height: 40 };
@@ -96,7 +97,7 @@ export default class LevelSelectScene {
 
         ctx.fillStyle = "white";
         ctx.font = "36px Arial";
-        ctx.fillText("Select Level", 360, 120);
+        ctx.fillText("Select Level", 360, 110);
 
         const backHovered = this.hoveredId === "back";
         ctx.fillStyle = backHovered ? "#666" : "#444";
