@@ -1,10 +1,12 @@
 import Game from "./engine/Game.js";
 import MainMenuScene from "./scenes/MainMenuScene.js";
 import SoundManager from "./engine/SoundManager.js";
+import DomUI from "./ui/DomUI.js";
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from "./config.js";
 
 const canvas = document.getElementById("gameCanvas");
 const viewport = document.getElementById("gameViewport");
+const domUiRoot = document.getElementById("dom-ui-root");
 
 canvas.logicalWidth = DESIGN_WIDTH;
 canvas.logicalHeight = DESIGN_HEIGHT;
@@ -28,8 +30,12 @@ function resizeCanvasDisplay() {
 
     const widthPx = `${Math.floor(displayWidth)}px`;
     const heightPx = `${Math.floor(displayHeight)}px`;
-    viewport.style.width = widthPx;
-    viewport.style.height = heightPx;
+
+    if (viewport) {
+        viewport.style.width = widthPx;
+        viewport.style.height = heightPx;
+    }
+
     canvas.style.width = widthPx;
     canvas.style.height = heightPx;
 
@@ -46,9 +52,10 @@ window.addEventListener("resize", resizeCanvasDisplay);
 
 const game = new Game(canvas);
 const soundManager = new SoundManager();
+const domUi = new DomUI(domUiRoot);
 
 game.sceneManager.changeScene(
-    new MainMenuScene(canvas, game.sceneManager, soundManager)
+    new MainMenuScene(canvas, game.sceneManager, soundManager, domUi)
 );
 
 game.start();
