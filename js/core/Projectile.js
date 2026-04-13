@@ -6,54 +6,37 @@ export default class Projectile {
         this.damage = damage;
         this.dead = false;
 
-        this.speed = options.speed ?? 300;
-        this.radius = options.radius ?? 4;
-        this.color = options.color ?? "yellow";
-        this.onHit = options.onHit ?? null;
+        this.speed = 300;
+        this.onHit = options.onHit;
     }
 
     update(dt) {
-        if (this.dead || !this.target || this.target.dead) {
+        if (!this.target || this.target.dead) {
             this.dead = true;
             return;
         }
 
         const dx = this.target.x - this.x;
         const dy = this.target.y - this.y;
-        const distance = Math.hypot(dx, dy);
+        const dist = Math.hypot(dx, dy);
 
-        if (distance < this.radius + this.target.radius * 0.6) {
-            const hitX = this.target.x;
-            const hitY = this.target.y;
-            const didDamage = this.target.takeDamage(this.damage);
+        if (dist < 5) {
+            this.target.takeDamage(this.damage);
 
-            if (didDamage && this.onHit) {
-                this.onHit({
-                    x: hitX,
-                    y: hitY,
-                    damage: this.damage,
-                    color: this.color
-                });
-            }
+            if (this.onHit) this.onHit(this.target);
 
             this.dead = true;
             return;
         }
 
-        this.x += (dx / distance) * this.speed * dt;
-        this.y += (dy / distance) * this.speed * dt;
+        this.x += (dx / dist) * this.speed * dt;
+        this.y += (dy / dist) * this.speed * dt;
     }
 
     render(ctx) {
-        if (this.dead) return;
-
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = "yellow";
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.strokeStyle = "rgba(255,255,255,0.35)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
     }
 }
