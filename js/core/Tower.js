@@ -12,6 +12,18 @@ export default class Tower {
         this.branch = null;
         this.maxLevel = 3;
 
+        this.multiShot = false;
+        this.pierceShots = false;
+        this.chainLightning = false;
+        this.freezeShots = false;
+        this.critChance = 0;
+        this.critMultiplier = 1.5;
+        this.backstabBonus = 0;
+        this.cleaveHits = 2;
+        this.rageMode = false;
+        this.stunBlast = false;
+        this.fireZone = false;
+
         this.setBaseStats();
     }
 
@@ -102,11 +114,11 @@ export default class Tower {
 
     getLevel2LeftLabel() {
         const labels = {
-            archer: "Rapid Shots",
-            bomb: "Big Blast",
-            berserker: "Heavy Swings",
-            rogue: "Quick Blades",
-            mage: "Arcane Power"
+            archer: "Draw Speed",
+            bomb: "Crushing Payload",
+            berserker: "Wide Swings",
+            rogue: "Assassin Training",
+            mage: "Storm Focus"
         };
 
         return labels[this.type];
@@ -114,11 +126,11 @@ export default class Tower {
 
     getLevel2RightLabel() {
         const labels = {
-            archer: "Long Range",
-            bomb: "Fast Throws",
-            berserker: "Battle Reach",
-            rogue: "Venom Edge",
-            mage: "Swift Charge"
+            archer: "Sharpsight",
+            bomb: "Lingering Powder",
+            berserker: "Battle Fury",
+            rogue: "Shadow Step",
+            mage: "Cold Study"
         };
 
         return labels[this.type];
@@ -127,24 +139,24 @@ export default class Tower {
     getLevel3Label() {
         const labels = {
             archer: {
-                left: "Storm Archer",
-                right: "Deadeye Archer"
+                left: "Multi-Shot",
+                right: "Piercing Arrows"
             },
             bomb: {
-                left: "Siege Bomber",
-                right: "Grenadier"
+                left: "Concussive Blast",
+                right: "Fire Zone"
             },
             berserker: {
-                left: "Executioner",
-                right: "Warlord"
+                left: "Cleave",
+                right: "Rage Mode"
             },
             rogue: {
-                left: "Shadow Dancer",
-                right: "Venom Master"
+                left: "Critical Strikes",
+                right: "Backstab"
             },
             mage: {
-                left: "Meteor Sage",
-                right: "Storm Mage"
+                left: "Chain Lightning",
+                right: "Freeze"
             }
         };
 
@@ -175,51 +187,51 @@ export default class Tower {
     applyFirstUpgrade(pathId) {
         if (this.type === "archer") {
             if (pathId === "left") {
-                this.rate += 0.65;
-                this.damage += 6;
-            } else {
-                this.range += 45;
+                this.rate += 0.5;
                 this.damage += 4;
+            } else {
+                this.range += 35;
+                this.damage += 6;
             }
         }
 
         if (this.type === "bomb") {
             if (pathId === "left") {
-                this.damage += 12;
-                this.splashRadius += 20;
+                this.damage += 10;
+                this.splashRadius += 18;
             } else {
-                this.rate += 0.35;
-                this.damage += 5;
+                this.rate += 0.25;
+                this.splashRadius += 10;
             }
         }
 
         if (this.type === "berserker") {
             if (pathId === "left") {
-                this.damage += 12;
-                this.rate += 0.15;
+                this.damage += 10;
+                this.range += 6;
             } else {
-                this.range += 18;
-                this.damage += 6;
+                this.rate += 0.2;
+                this.damage += 5;
             }
         }
 
         if (this.type === "rogue") {
             if (pathId === "left") {
-                this.rate += 1.0;
-                this.damage += 3;
+                this.rate += 0.7;
+                this.damage += 4;
             } else {
-                this.damage += 5;
-                this.poisonDamage = 5;
+                this.damage += 6;
+                this.range += 8;
             }
         }
 
         if (this.type === "mage") {
             if (pathId === "left") {
-                this.damage += 12;
-                this.meteorDamage += 12;
+                this.damage += 10;
+                this.meteorDamage += 10;
             } else {
-                this.rate += 0.35;
-                this.chargeThreshold = 2;
+                this.rate += 0.3;
+                this.burnDamage += 1;
             }
         }
     }
@@ -227,55 +239,63 @@ export default class Tower {
     applyFinalUpgrade() {
         if (this.type === "archer") {
             if (this.branch === "left") {
-                this.rate += 0.8;
-                this.damage += 8;
+                this.multiShot = true;
+                this.damage += 4;
+                this.rate += 0.25;
             } else {
-                this.range += 35;
+                this.pierceShots = true;
                 this.damage += 10;
+                this.range += 25;
             }
         }
 
         if (this.type === "bomb") {
             if (this.branch === "left") {
-                this.damage += 16;
-                this.splashRadius += 20;
+                this.stunBlast = true;
+                this.damage += 12;
+                this.splashRadius += 14;
             } else {
-                this.rate += 0.5;
-                this.damage += 8;
+                this.fireZone = true;
+                this.damage += 6;
+                this.rate += 0.2;
             }
         }
 
         if (this.type === "berserker") {
             if (this.branch === "left") {
-                this.damage += 15;
+                this.cleaveHits = 4;
+                this.damage += 10;
+                this.range += 8;
             } else {
-                this.range += 15;
-                this.rate += 0.35;
+                this.rageMode = true;
+                this.damage += 8;
             }
         }
 
         if (this.type === "rogue") {
             if (this.branch === "left") {
-                this.rate += 0.9;
-                this.damage += 4;
+                this.critChance = 0.35;
+                this.critMultiplier = 2.2;
+                this.damage += 5;
             } else {
-                this.damage += 8;
-                this.poisonDamage = 9;
+                this.backstabBonus = 18;
+                this.rate += 0.4;
             }
         }
 
         if (this.type === "mage") {
             if (this.branch === "left") {
-                this.damage += 16;
-                this.meteorDamage += 16;
+                this.chainLightning = true;
+                this.damage += 8;
+                this.meteorDamage += 12;
             } else {
-                this.rate += 0.45;
+                this.freezeShots = true;
+                this.damage += 5;
                 this.chargeThreshold = 2;
-                this.burnDamage += 2;
             }
         }
 
-        this.range += 20;
+        this.range += 12;
     }
 
     findTarget(enemies) {
@@ -297,6 +317,16 @@ export default class Tower {
         return target;
     }
 
+    getCurrentRate(scene) {
+        if (!this.rageMode) {
+            return this.rate;
+        }
+
+        const maxLives = 20;
+        const lostRatio = Math.max(0, Math.min(1, (maxLives - (scene?.lives ?? maxLives)) / maxLives));
+        return this.rate * (1 + lostRatio * 1.2);
+    }
+
     update(dt, enemies, projectiles, scene) {
         this.cool -= dt;
 
@@ -314,59 +344,76 @@ export default class Tower {
         } else if (this.type === "mage") {
             this.castMageAttack(target, enemies, projectiles, scene);
         } else {
-            this.fireArcherShot(target, projectiles);
+            this.fireArcherShot(target, enemies, projectiles, scene);
         }
 
-        this.cool = 1 / this.rate;
+        this.cool = 1 / this.getCurrentRate(scene);
     }
 
     performBerserkerAttack(enemies, scene) {
-        const cleaveTargets = enemies
+        const attackTargets = enemies
             .filter(enemy => !enemy.dead && !enemy.escaped && Math.hypot(enemy.x - this.x, enemy.y - this.y) <= this.range)
-            .slice(0, 2);
+            .sort((a, b) => b.i - a.i)
+            .slice(0, this.cleaveHits);
 
-        for (const enemy of cleaveTargets) {
+        for (const enemy of attackTargets) {
             const didDamage = enemy.takeDamage(this.damage);
             if (!didDamage) continue;
 
             scene?.spawnDamageNumber(enemy.x - 8, enemy.y - 14, this.damage, "#ffb4a2");
             scene?.spawnImpact(enemy.x, enemy.y, "#ff7b72", 16);
         }
-    }
 
-    performRogueAttack(target, scene) {
-        const didDamage = target.takeDamage(this.damage);
-        if (!didDamage) return;
-
-        scene?.spawnDamageNumber(target.x - 8, target.y - 16, this.damage, "#ddb6ff");
-        scene?.spawnImpact(target.x, target.y, "#c084fc", 12);
-
-        if (this.poisonDamage) {
-            target.applyEffect({
-                type: "burn",
-                time: 2.4,
-                damage: this.poisonDamage,
-                interval: 0.8,
-                tick: 0.8,
-                source: "poison"
-            });
+        if (this.rageMode && attackTargets.length > 0) {
+            scene?.spawnDamageNumber(this.x - 12, this.y - 24, "RAGE", "#fca5a5");
         }
     }
 
-    fireArcherShot(target, projectiles) {
-        projectiles.push(
-            new Projectile(this.x, this.y, target, this.damage, {
-                color: this.projectileColor,
-                radius: this.projectileRadius,
-                onHit: enemy => {
-                    enemy.applyEffect({
-                        type: "slow",
-                        time: 2.2,
-                        value: 0.72
-                    });
-                }
-            })
-        );
+    performRogueAttack(target, scene) {
+        let damage = this.damage;
+        let color = "#ddb6ff";
+        let label = damage;
+
+        if (this.backstabBonus > 0 && !target.backstabbed) {
+            damage += this.backstabBonus;
+            target.backstabbed = true;
+            color = "#f0abfc";
+            label = `BS ${damage}`;
+        } else if (this.critChance > 0 && Math.random() < this.critChance) {
+            damage = Math.round(this.damage * this.critMultiplier);
+            color = "#fde047";
+            label = `CRIT ${damage}`;
+        }
+
+        const didDamage = target.takeDamage(damage);
+        if (!didDamage) return;
+
+        scene?.spawnDamageNumber(target.x - 10, target.y - 16, label, color);
+        scene?.spawnImpact(target.x, target.y, "#c084fc", 12);
+    }
+
+    fireArcherShot(target, enemies, projectiles, scene) {
+        const targets = this.multiShot
+            ? [target, ...scene.getNearbyEnemies(target.x, target.y, 48, 2, new Set([target]))]
+            : [target];
+
+        for (const shotTarget of targets) {
+            projectiles.push(
+                new Projectile(this.x, this.y, shotTarget, this.damage, {
+                    color: this.projectileColor,
+                    radius: this.projectileRadius,
+                    labelColor: "#dcfce7",
+                    pierceCount: this.pierceShots ? 2 : 0,
+                    onHit: enemy => {
+                        enemy.applyEffect({
+                            type: "slow",
+                            time: 2.2,
+                            value: 0.72
+                        });
+                    }
+                })
+            );
+        }
     }
 
     fireBomb(target, enemies, projectiles, scene) {
@@ -389,7 +436,21 @@ export default class Tower {
                         const didDamage = enemy.takeDamage(dealt);
                         if (!didDamage) continue;
 
+                        if (this.stunBlast) {
+                            enemy.applyEffect({ type: "stun", time: 0.7 });
+                        }
+
                         scene?.spawnDamageNumber(enemy.x - 10, enemy.y - 16, dealt, "#ffd39f");
+                    }
+
+                    if (this.fireZone) {
+                        scene?.spawnFireZone(hitEnemy.x, hitEnemy.y, {
+                            radius: Math.max(34, this.splashRadius * 0.55),
+                            duration: 3.5,
+                            tickInterval: 0.5,
+                            damage: 8,
+                            color: "rgba(249, 115, 22, 0.30)"
+                        });
                     }
                 }
             })
@@ -409,28 +470,13 @@ export default class Tower {
                 const didDamage = enemy.takeDamage(this.meteorDamage);
                 if (!didDamage) continue;
 
-                enemy.applyEffect({
-                    type: "burn",
-                    time: this.burnDuration,
-                    damage: this.burnDamage,
-                    interval: this.burnInterval,
-                    tick: this.burnInterval,
-                    source: "fire"
-                });
-
-                scene?.spawnDamageNumber(enemy.x - 10, enemy.y - 16, this.meteorDamage, "#ffb86b");
-            }
-
-            scene?.spawnImpact(target.x, target.y, "#f97316", this.meteorRadius * 0.36);
-            this.charge = 0;
-            return;
-        }
-
-        projectiles.push(
-            new Projectile(this.x, this.y, target, this.damage, {
-                color: this.projectileColor,
-                radius: this.projectileRadius,
-                onHit: enemy => {
+                if (this.freezeShots) {
+                    enemy.applyEffect({
+                        type: "freeze",
+                        time: 1.8,
+                        value: 0.35
+                    });
+                } else {
                     enemy.applyEffect({
                         type: "burn",
                         time: this.burnDuration,
@@ -439,6 +485,42 @@ export default class Tower {
                         tick: this.burnInterval,
                         source: "fire"
                     });
+                }
+
+                scene?.spawnDamageNumber(enemy.x - 10, enemy.y - 16, this.meteorDamage, "#ffb86b");
+            }
+
+            scene?.spawnImpact(target.x, target.y, this.freezeShots ? "#7dd3fc" : "#f97316", this.meteorRadius * 0.36);
+            this.charge = 0;
+            return;
+        }
+
+        projectiles.push(
+            new Projectile(this.x, this.y, target, this.damage, {
+                color: this.freezeShots ? "#7dd3fc" : this.projectileColor,
+                radius: this.projectileRadius,
+                labelColor: this.freezeShots ? "#bae6fd" : "#dbeafe",
+                onHit: enemy => {
+                    if (this.chainLightning) {
+                        scene?.spawnChainLightning(enemy, this.damage * 0.7, 2, 80, new Set([enemy]));
+                    }
+
+                    if (this.freezeShots) {
+                        enemy.applyEffect({
+                            type: "freeze",
+                            time: 1.8,
+                            value: 0.35
+                        });
+                    } else {
+                        enemy.applyEffect({
+                            type: "burn",
+                            time: this.burnDuration,
+                            damage: this.burnDamage,
+                            interval: this.burnInterval,
+                            tick: this.burnInterval,
+                            source: "fire"
+                        });
+                    }
                 }
             })
         );
@@ -450,7 +532,7 @@ export default class Tower {
             level: this.level,
             damage: this.damage,
             range: Math.round(this.range),
-            rate: this.rate.toFixed(2),
+            rate: this.getCurrentRate({ lives: 20 }).toFixed(2),
             path: this.branch ? this.getLevel3Label() : "None"
         };
     }

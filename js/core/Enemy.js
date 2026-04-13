@@ -28,13 +28,15 @@ export default class Enemy {
 
         this.dead = false;
         this.escaped = false;
+        this.stunned = false;
 
         this.effects = [];
         this.flashTimer = 0;
+        this.backstabbed = false;
     }
 
     applyEffect(effect) {
-        if (effect.type === "slow" && this.immuneSlow) {
+        if ((effect.type === "slow" || effect.type === "freeze") && this.immuneSlow) {
             return false;
         }
 
@@ -43,14 +45,17 @@ export default class Enemy {
         if (existing) {
             existing.time = Math.max(existing.time, effect.time ?? 0);
 
-            if (effect.type === "slow") {
+            if (effect.type === "slow" || effect.type === "freeze") {
                 existing.value = Math.min(existing.value ?? 1, effect.value ?? 1);
             }
 
             if (effect.type === "burn") {
                 existing.damage = Math.max(existing.damage ?? 0, effect.damage ?? 0);
                 existing.interval = effect.interval ?? existing.interval ?? 0.5;
-                existing.tick = Math.min(existing.tick ?? existing.interval, effect.tick ?? effect.interval ?? existing.interval);
+                existing.tick = Math.min(
+                    existing.tick ?? existing.interval,
+                    effect.tick ?? effect.interval ?? existing.interval
+                );
                 existing.source = effect.source ?? existing.source;
             }
 
@@ -63,12 +68,22 @@ export default class Enemy {
 
     updateEffects(dt, scene) {
         this.speed = this.baseSpeed;
+        this.stunned = false;
 
         for (const effect of this.effects) {
             effect.time -= dt;
 
             if (effect.type === "slow" && !this.immuneSlow) {
                 this.speed *= effect.value;
+            }
+
+            if (effect.type === "freeze" && !this.immuneSlow) {
+                this.speed *= effect.value;
+            }
+
+            if (effect.type === "stun") {
+                this.stunned = true;
+                this.speed = 0;
             }
 
             if (effect.type === "burn") {
@@ -133,6 +148,10 @@ export default class Enemy {
             return;
         }
 
+        if (this.stunned) {
+            return;
+        }
+
         const target = this.path[this.i + 1];
         const dx = target.x - this.x;
         const dy = target.y - this.y;
@@ -168,13 +187,15 @@ export default class Enemy {
     render(ctx) {
         if (this.dead) return;
 
-        const slowed = !this.immuneSlow && this.hasEffect("slow");
+        const frozen = !this.immuneSlow && this.hasEffect("freeze");
+        const slowed = !frozen && !this.immuneSlow && this.hasEffect("slow");
         const burning = this.hasEffect("burn");
+        const stunned = this.hasEffect("stun");
 
         ctx.save();
 
-        if (slowed) {
-            ctx.fillStyle = "rgba(96, 165, 250, 0.22)";
+        if (slowed || frozen) {
+            ctx.fillStyle = frozen ? "rgba(125, 211, 252, 0.30)" : "rgba(96, 165, 250, 0.22)";
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius + 4, 0, Math.PI * 2);
             ctx.fill();
@@ -201,8 +222,19 @@ export default class Enemy {
         ctx.fill();
 
         ctx.lineWidth = this.isBoss ? 3 : 2;
-        ctx.strokeStyle = this.isBoss ? "#fee2e2" : slowed ? "#93c5fd" : "rgba(0,0,0,0.35)";
+        ctx.strokeStyle = this.isBoss ? "#fee2e2" : frozen ? "#bae6fd" : slowed ? "#93c5fd" : "rgba(0,0,0,0.35)";
         ctx.stroke();
+
+        if (stunned) {
+            ctx.strokeStyle = "#fde68a";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.x - 5, this.y - this.radius - 6);
+            ctx.lineTo(this.x - 1, this.y - this.radius - 12);
+            ctx.lineTo(this.x + 1, this.y - this.radius - 8);
+            ctx.lineTo(this.x + 5, this.y - this.radius - 14);
+            ctx.stroke();
+        }
 
         if (this.isBoss) {
             this.drawBossCrown(ctx);
@@ -215,7 +247,7 @@ export default class Enemy {
         ctx.fillText(this.name[0], this.x, this.y + 0.5);
 
         this.drawHealthBar(ctx);
-        this.drawStatusIcons(ctx, slowed, burning);
+        this.drawStatusIcons(ctx, { slowed, frozen, burning, stunned });
 
         ctx.restore();
     }
@@ -248,17 +280,23 @@ export default class Enemy {
         ctx.fillRect(x, y, width * ratio, height);
     }
 
-    drawStatusIcons(ctx, slowed, burning) {
+    drawStatusIcons(ctx, states) {
         const iconY = this.y - this.radius - (this.isBoss ? 26 : 18);
         let iconX = this.x;
 
         const icons = [];
         if (this.immuneSlow) icons.push({ label: "I", fill: "#38bdf8" });
-        else if (slowed) icons.push({ label: "S", fill: "#60a5fa" });
-        if (burning) icons.push({ label: "B", fill: "#fb923c" });
+        else if (states.frozen) icons.push({ label: "F", fill: "#7dd3fc" });
+        else if (states.slowed) icons.push({ label: "S", fill: "#60a5fa" });
+        if (states.burning) icons.push({ label: "B", fill: "#fb923c" });
+        if (states.stunned) icons.push({ label: "T", fill: "#facc15" });
 
-        if (icons.length === 2) {
-            iconX -= 8;
+        if (icons.length === 0) {
+            return;
+        }
+
+        if (icons.length > 1) {
+            iconX -= ((icons.length - 1) * 8) / 2;
         }
 
         for (const icon of icons) {
@@ -267,11 +305,13 @@ export default class Enemy {
             ctx.arc(iconX, iconY, 6, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.fillStyle = "white";
+            ctx.fillStyle = "#0f172a";
             ctx.font = "bold 8px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
             ctx.fillText(icon.label, iconX, iconY + 0.5);
 
-            iconX += 16;
+            iconX += 8;
         }
     }
 }

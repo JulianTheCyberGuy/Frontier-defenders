@@ -10,10 +10,14 @@ export default class Projectile {
         this.radius = options.radius ?? 4;
         this.color = options.color ?? "yellow";
         this.onHit = options.onHit;
+        this.pierceCount = options.pierceCount ?? 0;
+        this.hitEnemies = new Set();
+        this.chainColor = options.chainColor ?? this.color;
+        this.labelColor = options.labelColor ?? "#ffffff";
     }
 
     update(dt, scene) {
-        if (!this.target || this.target.dead) {
+        if (!this.target || this.target.dead || this.target.escaped) {
             this.dead = true;
             return;
         }
@@ -23,17 +27,28 @@ export default class Projectile {
         const dist = Math.hypot(dx, dy);
 
         if (dist < this.radius + this.target.radius * 0.5) {
+            this.hitEnemies.add(this.target);
+
             if (this.damage > 0) {
                 const didDamage = this.target.takeDamage(this.damage);
                 if (didDamage) {
-                    scene?.spawnDamageNumber(this.target.x - 8, this.target.y - 16, this.damage, "#ffffff");
+                    scene?.spawnDamageNumber(this.target.x - 8, this.target.y - 16, this.damage, this.labelColor);
                 }
             }
 
             scene?.spawnImpact(this.target.x, this.target.y, this.color, 12);
 
             if (this.onHit) {
-                this.onHit(this.target, scene);
+                this.onHit(this.target, scene, this);
+            }
+
+            if (this.pierceCount > 0) {
+                const nextTarget = scene?.getPierceContinuationTarget(this.target, this.hitEnemies);
+                if (nextTarget) {
+                    this.target = nextTarget;
+                    this.pierceCount -= 1;
+                    return;
+                }
             }
 
             this.dead = true;

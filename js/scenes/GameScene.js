@@ -52,6 +52,8 @@ export default class GameScene {
 
         this.damageNumbers = [];
         this.impactEffects = [];
+        this.fireZones = [];
+        this.chainEffects = [];
         this.occupiedBuildTiles = new Set();
         this.activeBoss = null;
 
@@ -83,6 +85,8 @@ export default class GameScene {
         this.projectiles = [];
         this.damageNumbers = [];
         this.impactEffects = [];
+        this.fireZones = [];
+        this.chainEffects = [];
         this.occupiedBuildTiles = new Set();
         this.activeBoss = null;
 
@@ -156,6 +160,69 @@ export default class GameScene {
 
     spawnImpact(x, y, color = "#ffffff", maxRadius = 12) {
         this.impactEffects.push({ x, y, color, life: 0.18, maxLife: 0.18, radius: 4, maxRadius });
+    }
+
+    spawnFireZone(x, y, options = {}) {
+        this.fireZones.push({
+            x,
+            y,
+            radius: options.radius ?? 36,
+            duration: options.duration ?? 3,
+            life: options.duration ?? 3,
+            tickInterval: options.tickInterval ?? 0.5,
+            tickTimer: options.tickInterval ?? 0.5,
+            damage: options.damage ?? 8,
+            color: options.color ?? "rgba(249, 115, 22, 0.30)"
+        });
+        this.spawnImpact(x, y, "#fb923c", (options.radius ?? 36) * 0.6);
+    }
+
+    spawnChainLightning(sourceEnemy, damage, jumpsLeft, range, visited = new Set()) {
+        if (!sourceEnemy || jumpsLeft <= 0) {
+            return;
+        }
+
+        const nextTarget = this.getNearbyEnemies(sourceEnemy.x, sourceEnemy.y, range, 1, visited)[0];
+        if (!nextTarget) {
+            return;
+        }
+
+        visited.add(nextTarget);
+
+        const dealt = Math.max(1, Math.round(damage));
+        const didDamage = nextTarget.takeDamage(dealt);
+        if (!didDamage) {
+            return;
+        }
+
+        this.chainEffects.push({
+            fromX: sourceEnemy.x,
+            fromY: sourceEnemy.y,
+            toX: nextTarget.x,
+            toY: nextTarget.y,
+            life: 0.12,
+            maxLife: 0.12,
+            color: "#93c5fd"
+        });
+
+        this.spawnDamageNumber(nextTarget.x - 10, nextTarget.y - 16, dealt, "#bfdbfe");
+        this.spawnImpact(nextTarget.x, nextTarget.y, "#93c5fd", 14);
+
+        this.spawnChainLightning(nextTarget, damage * 0.75, jumpsLeft - 1, range, visited);
+    }
+
+    getNearbyEnemies(x, y, range, limit = Infinity, exclude = new Set()) {
+        return this.enemies
+            .filter(enemy => !enemy.dead && !enemy.escaped && !exclude.has(enemy) && Math.hypot(enemy.x - x, enemy.y - y) <= range)
+            .sort((a, b) => b.i - a.i)
+            .slice(0, limit);
+    }
+
+    getPierceContinuationTarget(fromEnemy, hitEnemies) {
+        return this.enemies.find(enemy => {
+            if (enemy.dead || enemy.escaped || hitEnemies.has(enemy)) return false;
+            return Math.hypot(enemy.x - fromEnemy.x, enemy.y - fromEnemy.y) <= 70;
+        }) ?? null;
     }
 
     tryUpgradeTower(pathId) {
@@ -360,6 +427,8 @@ export default class GameScene {
             this.projectiles = this.projectiles.filter(projectile => !projectile.dead);
             this.activeBoss = this.enemies.find(enemy => enemy.isBoss) ?? null;
 
+            this.updateFireZones(dt);
+
             if (this.lives <= 0) {
                 this.gameOver = true;
                 if (!this.endSoundPlayed) {
@@ -376,6 +445,39 @@ export default class GameScene {
 
         this.updateDamageNumbers(dt);
         this.updateImpactEffects(dt);
+        this.updateChainEffects(dt);
+    }
+
+    updateFireZones(dt) {
+        for (const zone of this.fireZones) {
+            zone.life -= dt;
+            zone.tickTimer -= dt;
+
+            if (zone.tickTimer <= 0) {
+                for (const enemy of this.enemies) {
+                    if (enemy.dead || enemy.escaped) continue;
+                    if (Math.hypot(enemy.x - zone.x, enemy.y - zone.y) > zone.radius) continue;
+
+                    const didDamage = enemy.takeDamage(zone.damage);
+                    if (!didDamage) continue;
+
+                    enemy.applyEffect({
+                        type: "burn",
+                        time: 1.5,
+                        damage: 4,
+                        interval: 0.5,
+                        tick: 0.5,
+                        source: "fire"
+                    });
+
+                    this.spawnDamageNumber(enemy.x - 8, enemy.y - 16, zone.damage, "#fdba74");
+                }
+
+                zone.tickTimer = zone.tickInterval;
+            }
+        }
+
+        this.fireZones = this.fireZones.filter(zone => zone.life > 0);
     }
 
     updateDamageNumbers(dt) {
@@ -395,10 +497,19 @@ export default class GameScene {
         this.impactEffects = this.impactEffects.filter(effect => effect.life > 0);
     }
 
+    updateChainEffects(dt) {
+        for (const effect of this.chainEffects) {
+            effect.life -= dt;
+        }
+        this.chainEffects = this.chainEffects.filter(effect => effect.life > 0);
+    }
+
     render(ctx) {
         this.drawMap(ctx);
 
+        for (const zone of this.fireZones) this.drawFireZone(ctx, zone);
         for (const impact of this.impactEffects) this.drawImpactEffect(ctx, impact);
+        for (const chain of this.chainEffects) this.drawChainEffect(ctx, chain);
         for (const tower of this.towers) tower.render(ctx);
         for (const projectile of this.projectiles) projectile.render(ctx);
         for (const enemy of this.enemies) enemy.render(ctx);
@@ -446,6 +557,17 @@ export default class GameScene {
         ctx.stroke();
     }
 
+    drawFireZone(ctx, zone) {
+        const alpha = Math.max(0.12, zone.life / zone.duration * 0.35);
+        ctx.save();
+        ctx.fillStyle = zone.color;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
     drawImpactEffect(ctx, effect) {
         const alpha = effect.life / effect.maxLife;
         ctx.save();
@@ -454,6 +576,19 @@ export default class GameScene {
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    drawChainEffect(ctx, effect) {
+        const alpha = effect.life / effect.maxLife;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = effect.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(effect.fromX, effect.fromY);
+        ctx.lineTo(effect.toX, effect.toY);
         ctx.stroke();
         ctx.restore();
     }
@@ -515,7 +650,7 @@ export default class GameScene {
         ctx.fillText("Rate: " + stats.rate, 695, 160);
 
         if (cost != null) ctx.fillText("Upgrade Cost: " + cost, 695, 182);
-        else ctx.fillText("Max Level Reached", 695, 182);
+        else ctx.fillText("Path: " + stats.path, 695, 182);
 
         for (let i = 0; i < choices.length; i++) {
             const button = this.upgradeButtons[i];
