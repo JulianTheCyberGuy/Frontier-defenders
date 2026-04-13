@@ -153,6 +153,15 @@ export default class Enemy {
         return this.effects.some(effect => effect.type === type);
     }
 
+    getTraitSummary() {
+        const traits = [];
+        if (this.damageReduction > 0) traits.push('Shielded');
+        if (this.pendingSpawnRoles.length > 0) traits.push('Splits on death');
+        if (this.slowImmune) traits.push('Slow immune');
+        if (this.stunImmune) traits.push('Stun immune');
+        return traits.length > 0 ? traits.join(', ') : 'No special traits';
+    }
+
     render(ctx) {
         if (this.dead) return;
 

@@ -363,6 +363,17 @@ export default class Tower {
         return Math.max(1, Math.floor(this.investedGold * 0.7));
     }
 
+    getAbilitySummary() {
+        const summaries = {
+            archer: this.level >= 3 ? 'Single target with strong arrows' : 'Long range single target',
+            bomb: this.burnOnHit ? 'Area damage with lingering fire' : 'Area damage splash shots',
+            berserker: this.cleaveCount > 0 ? 'Melee cleave attacker' : 'Heavy melee tower',
+            rogue: this.critChance > 0 ? 'Fast melee with crit chance' : 'Fast melee attacker',
+            mage: this.slowStrength && this.slowStrength < 0.65 ? 'Magic splash with strong slow' : 'Magic splash with burn'
+        };
+        return summaries[this.type] ?? 'Tower';
+    }
+
     getDisplayStats() {
         return {
             name: this.name,
@@ -371,7 +382,8 @@ export default class Tower {
             range: Math.round(this.range),
             rate: this.rate.toFixed(2),
             invested: this.investedGold,
-            sellValue: this.getSellValue()
+            sellValue: this.getSellValue(),
+            ability: this.getAbilitySummary()
         };
     }
 
