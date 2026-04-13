@@ -4,8 +4,8 @@
     --bg-middle: #15101d;
     --bg-bottom: #050409;
     --frame: rgba(255, 232, 196, 0.1);
-    --frame-strong: rgba(226, 187, 110, 0.2);
-    --canvas-shadow: rgba(0, 0, 0, 0.52);
+    --frame-strong: rgba(226, 187, 110, 0.18);
+    --canvas-shadow: rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -26,9 +26,9 @@ body {
     overflow: hidden;
     font-family: "Inter", sans-serif;
     background:
-        radial-gradient(circle at 14% 16%, rgba(215, 176, 109, 0.12), transparent 24%),
-        radial-gradient(circle at 84% 18%, rgba(141, 167, 255, 0.11), transparent 22%),
-        radial-gradient(circle at 50% 100%, rgba(126, 215, 178, 0.08), transparent 26%),
+        radial-gradient(circle at 14% 16%, rgba(215, 176, 109, 0.11), transparent 24%),
+        radial-gradient(circle at 84% 18%, rgba(141, 167, 255, 0.09), transparent 22%),
+        radial-gradient(circle at 50% 100%, rgba(126, 215, 178, 0.07), transparent 26%),
         linear-gradient(180deg, var(--bg-top) 0%, var(--bg-middle) 46%, var(--bg-bottom) 100%);
     color: #f7f0e5;
 }
@@ -38,10 +38,10 @@ body::before {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    opacity: 0.42;
+    opacity: 0.28;
     background-image:
-        linear-gradient(rgba(255, 248, 234, 0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 248, 234, 0.025) 1px, transparent 1px);
+        linear-gradient(rgba(255, 248, 234, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 248, 234, 0.02) 1px, transparent 1px);
     background-size: 34px 34px;
     mask-image: radial-gradient(circle at center, black, transparent 82%);
 }
@@ -51,8 +51,7 @@ body::after {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    background:
-        radial-gradient(circle at center, transparent 56%, rgba(3, 2, 5, 0.56) 100%);
+    background: radial-gradient(circle at center, transparent 58%, rgba(3, 2, 5, 0.48) 100%);
 }
 
 .game-shell {
@@ -71,13 +70,13 @@ canvas {
     max-height: calc(100vh - 36px);
     border: 1px solid var(--frame);
     outline: 1px solid var(--frame-strong);
-    outline-offset: -10px;
-    border-radius: 30px;
+    outline-offset: -8px;
+    border-radius: 28px;
     box-shadow:
-        0 34px 100px var(--canvas-shadow),
-        0 0 0 1px rgba(255, 244, 220, 0.04),
-        inset 0 1px 0 rgba(255, 248, 234, 0.08),
-        inset 0 -24px 60px rgba(0, 0, 0, 0.26);
+        0 28px 84px var(--canvas-shadow),
+        0 0 0 1px rgba(255, 244, 220, 0.03),
+        inset 0 1px 0 rgba(255, 248, 234, 0.07),
+        inset 0 -18px 44px rgba(0, 0, 0, 0.22);
     background: #0f0b13;
 }
 
@@ -89,6 +88,6 @@ canvas {
     canvas {
         width: min(calc(100vw - 24px), calc((100vh - 24px) * 1.7777778));
         max-height: calc(100vh - 24px);
-        border-radius: 22px;
+        border-radius: 20px;
     }
 }

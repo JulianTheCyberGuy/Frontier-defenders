@@ -72,88 +72,88 @@ export default class SettingsScene {
         this.ui.drawBackdrop(ctx, {
             top: "#120d17",
             bottom: "#050409",
-            accent: "rgba(215, 176, 109, 0.13)",
+            accent: "rgba(215, 176, 109, 0.12)",
             accentTwo: "rgba(126, 215, 178, 0.08)"
         });
 
         this.ui.drawPanel(ctx, frame.x, frame.y, frame.width, frame.height, {
-            radius: 30,
+            radius: 26,
             fill: "rgba(9, 7, 12, 0.82)",
-            border: "rgba(255,232,196,0.1)",
-            glow: "rgba(215, 176, 109, 0.08)"
+            border: "rgba(255,232,196,0.08)",
+            glow: "rgba(215, 176, 109, 0.06)"
         });
 
         this.ui.drawPanel(ctx, header.x, header.y, header.width, header.height, {
-            radius: 24,
+            radius: 20,
             fill: "rgba(18, 14, 22, 0.94)",
-            border: "rgba(255,232,196,0.12)",
-            glow: "rgba(141, 167, 255, 0.06)"
+            border: "rgba(255,232,196,0.1)",
+            glow: "rgba(141, 167, 255, 0.05)"
         });
 
         ctx.save();
         ctx.fillStyle = "#f8f4eb";
-        ctx.font = "700 34px Cinzel";
-        ctx.fillText("Settings", header.x + 22, header.y + 42);
-        ctx.fillStyle = "rgba(232, 222, 205, 0.78)";
-        ctx.font = "500 15px Inter";
-        ctx.fillText("Small controls that help the game feel cleaner before a run begins.", header.x + 22, header.y + 72);
+        ctx.font = "700 28px Cinzel";
+        ctx.fillText("Settings", header.x + 18, header.y + 30);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.72)";
+        ctx.font = "500 13px Inter";
+        ctx.fillText("Small controls that help the game feel cleaner before a run begins.", header.x + 18, header.y + 54);
         ctx.restore();
 
         this.ui.drawPanel(ctx, cards.audio.x, cards.audio.y, cards.audio.width, cards.audio.height, {
-            radius: 22,
+            radius: 18,
             fill: "rgba(16, 12, 20, 0.92)",
-            border: "rgba(255,232,196,0.11)"
+            border: "rgba(255,232,196,0.09)"
         });
         ctx.save();
         ctx.fillStyle = "#f8f4eb";
-        ctx.font = "700 17px Inter";
-        ctx.fillText("Audio", cards.audio.x + 22, cards.audio.y + 32);
-        ctx.fillStyle = "rgba(232, 222, 205, 0.76)";
-        ctx.font = "500 14px Inter";
-        ctx.fillText("Cycle the master volume between mute, low, medium, and high.", cards.audio.x + 22, cards.audio.y + 62);
-        ctx.fillText(`Current setting: ${this.soundManager.getVolumeLabel()}`, cards.audio.x + 22, cards.audio.y + 88);
+        ctx.font = "700 14px Inter";
+        ctx.fillText("Audio", cards.audio.x + 18, cards.audio.y + 26);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.74)";
+        ctx.font = "500 12px Inter";
+        ctx.fillText("Cycle the master volume between mute, low, medium, and high.", cards.audio.x + 18, cards.audio.y + 48);
+        ctx.fillText(`Current setting: ${this.soundManager.getVolumeLabel()}`, cards.audio.x + 18, cards.audio.y + 66);
         ctx.restore();
 
         this.ui.drawButton(ctx, buttons.volume, this.soundManager.getVolumeLabel(), {
             hovered: this.hoveredId === "volume",
             active: true,
-            radius: 16,
-            font: "700 15px Inter"
+            radius: 14,
+            font: "700 13px Inter"
         });
 
         this.ui.drawPanel(ctx, cards.display.x, cards.display.y, cards.display.width, cards.display.height, {
-            radius: 22,
+            radius: 18,
             fill: "rgba(16, 12, 20, 0.92)",
-            border: "rgba(255,232,196,0.11)"
+            border: "rgba(255,232,196,0.09)"
         });
         ctx.save();
         ctx.fillStyle = "#f8f4eb";
-        ctx.font = "700 17px Inter";
-        ctx.fillText("Display", cards.display.x + 22, cards.display.y + 32);
-        ctx.fillStyle = "rgba(232, 222, 205, 0.76)";
-        ctx.font = "500 14px Inter";
-        ctx.fillText("The game keeps a fixed internal resolution and scales to the screen automatically.", cards.display.x + 22, cards.display.y + 62);
-        ctx.fillText("Input is mapped to the scaled canvas so clicks still land accurately.", cards.display.x + 22, cards.display.y + 86);
+        ctx.font = "700 14px Inter";
+        ctx.fillText("Display", cards.display.x + 18, cards.display.y + 26);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.74)";
+        ctx.font = "500 12px Inter";
+        ctx.fillText("The canvas keeps a fixed internal size and now renders more sharply on high DPI screens.", cards.display.x + 18, cards.display.y + 48);
+        ctx.fillText("Input still maps correctly to the scaled canvas.", cards.display.x + 18, cards.display.y + 66);
         ctx.restore();
 
         this.ui.drawPanel(ctx, cards.style.x, cards.style.y, cards.style.width, cards.style.height, {
-            radius: 22,
+            radius: 18,
             fill: "rgba(16, 12, 20, 0.92)",
-            border: "rgba(255,232,196,0.11)"
+            border: "rgba(255,232,196,0.09)"
         });
         ctx.save();
         ctx.fillStyle = "#f8f4eb";
-        ctx.font = "700 17px Inter";
-        ctx.fillText("Visual Direction", cards.style.x + 22, cards.style.y + 32);
-        ctx.fillStyle = "rgba(232, 222, 205, 0.76)";
-        ctx.font = "500 14px Inter";
-        ctx.fillText("This pass pushes the UI toward dark fantasy with warmer metals and deeper shadow.", cards.style.x + 22, cards.style.y + 62);
+        ctx.font = "700 14px Inter";
+        ctx.fillText("Visual Direction", cards.style.x + 18, cards.style.y + 26);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.74)";
+        ctx.font = "500 12px Inter";
+        ctx.fillText("This pass keeps the dark fantasy look while giving more space back to gameplay.", cards.style.x + 18, cards.style.y + 48);
         ctx.restore();
 
         this.ui.drawButton(ctx, buttons.back, "Back", {
             hovered: this.hoveredId === "back",
-            radius: 16,
-            font: "700 15px Inter"
+            radius: 14,
+            font: "700 13px Inter"
         });
     }
 }

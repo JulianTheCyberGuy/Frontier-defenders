@@ -76,139 +76,139 @@ export default class MainMenuScene {
         this.ui.drawBackdrop(ctx, {
             top: "#120d17",
             bottom: "#050409",
-            accent: "rgba(215, 176, 109, 0.14)",
-            accentTwo: "rgba(141, 167, 255, 0.1)"
+            accent: "rgba(215, 176, 109, 0.12)",
+            accentTwo: "rgba(141, 167, 255, 0.08)"
         });
 
         this.ui.drawPanel(ctx, frame.x, frame.y, frame.width, frame.height, {
-            radius: 30,
-            fill: "rgba(8, 7, 12, 0.76)",
-            border: "rgba(255, 232, 196, 0.1)",
-            glow: "rgba(215, 176, 109, 0.08)"
+            radius: 28,
+            fill: "rgba(8, 7, 12, 0.78)",
+            border: "rgba(255, 232, 196, 0.08)",
+            glow: "rgba(215, 176, 109, 0.06)"
         });
 
         this.ui.drawPanel(ctx, hero.x, hero.y, hero.width, hero.height, {
-            radius: 28,
-            fill: "rgba(18, 14, 22, 0.91)",
-            border: "rgba(255, 232, 196, 0.12)",
-            glow: "rgba(126, 215, 178, 0.06)"
+            radius: 24,
+            fill: "rgba(18, 14, 22, 0.9)",
+            border: "rgba(255, 232, 196, 0.1)",
+            glow: "rgba(126, 215, 178, 0.05)"
         });
 
         ctx.save();
-        ctx.fillStyle = "rgba(215, 176, 109, 0.14)";
+        ctx.fillStyle = "rgba(215, 176, 109, 0.1)";
         ctx.beginPath();
-        ctx.arc(hero.x + hero.width - 96, hero.y + 94, 70, 0, Math.PI * 2);
+        ctx.arc(hero.x + hero.width - 92, hero.y + 82, 56, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "rgba(141, 167, 255, 0.12)";
+        ctx.fillStyle = "rgba(141, 167, 255, 0.08)";
         ctx.beginPath();
-        ctx.arc(hero.x + 92, hero.y + hero.height - 98, 90, 0, Math.PI * 2);
+        ctx.arc(hero.x + 88, hero.y + hero.height - 92, 72, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "rgba(126, 215, 178, 0.08)";
+        ctx.fillStyle = "rgba(126, 215, 178, 0.06)";
         ctx.beginPath();
-        ctx.arc(hero.x + hero.width * 0.56, hero.y + hero.height * 0.66, 120, 0, Math.PI * 2);
+        ctx.arc(hero.x + hero.width * 0.54, hero.y + hero.height * 0.64, 92, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
         ctx.save();
         ctx.textAlign = "left";
         ctx.fillStyle = "#f8f4eb";
-        ctx.font = "700 14px Inter";
-        ctx.fillText("DARK FANTASY TOWER DEFENSE", hero.x + 30, hero.y + 48);
-        ctx.font = "700 58px Cinzel";
-        ctx.fillText("Frontier", hero.x + 30, hero.y + 118);
-        ctx.fillText("Defenders", hero.x + 30, hero.y + 172);
-        ctx.fillStyle = "rgba(232, 222, 205, 0.8)";
-        ctx.font = "500 18px Inter";
-        ctx.fillText("Hold ancient roads, layer your defenses,", hero.x + 30, hero.y + 214);
-        ctx.fillText("and survive each wave with cleaner tactical control.", hero.x + 30, hero.y + 240);
+        ctx.font = "700 12px Inter";
+        ctx.fillText("DARK FANTASY TOWER DEFENSE", hero.x + 26, hero.y + 40);
+        ctx.font = "700 48px Cinzel";
+        ctx.fillText("Frontier", hero.x + 26, hero.y + 102);
+        ctx.fillText("Defenders", hero.x + 26, hero.y + 148);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.78)";
+        ctx.font = "500 14px Inter";
+        ctx.fillText("Hold the line, place towers with intent, and survive the push.", hero.x + 26, hero.y + 188);
+        ctx.fillText("A cleaner shell now makes the game easier to read at a glance.", hero.x + 26, hero.y + 208);
         ctx.restore();
 
         this.ui.drawButton(ctx, buttons.start, "Play", {
             hovered: this.hoveredId === "start",
             active: true,
-            radius: 18,
-            font: "700 16px Inter"
+            radius: 16,
+            font: "700 15px Inter"
         });
         this.ui.drawButton(ctx, buttons.levels, "Level Select", {
             hovered: this.hoveredId === "levels",
-            radius: 18,
-            font: "700 16px Inter"
+            radius: 16,
+            font: "700 15px Inter"
         });
         this.ui.drawButton(ctx, buttons.settings, "Settings", {
             hovered: this.hoveredId === "settings",
-            radius: 18,
-            font: "700 16px Inter"
+            radius: 16,
+            font: "700 15px Inter"
         });
 
         ctx.save();
-        ctx.font = "600 13px Inter";
+        ctx.font = "600 12px Inter";
         this.ui.drawPill(ctx, featurePills[0].x, featurePills[0].y, "Responsive fit", {
             minWidth: featurePills[0].width,
             height: featurePills[0].height,
             active: true
         });
-        this.ui.drawPill(ctx, featurePills[1].x, featurePills[1].y, "Dark fantasy palette", {
+        this.ui.drawPill(ctx, featurePills[1].x, featurePills[1].y, "Sharper canvas", {
             minWidth: featurePills[1].width,
             height: featurePills[1].height
         });
-        this.ui.drawPill(ctx, featurePills[2].x, featurePills[2].y, "Cleaner menu flow", {
+        this.ui.drawPill(ctx, featurePills[2].x, featurePills[2].y, "Lighter UI footprint", {
             minWidth: featurePills[2].width,
             height: featurePills[2].height
         });
         ctx.restore();
 
         this.ui.drawPanel(ctx, statusPanel.x, statusPanel.y, statusPanel.width, statusPanel.height, {
-            radius: 24,
+            radius: 22,
             fill: "rgba(16, 12, 20, 0.92)",
-            border: "rgba(255,232,196,0.12)",
-            glow: "rgba(215, 176, 109, 0.07)"
+            border: "rgba(255,232,196,0.1)",
+            glow: "rgba(215, 176, 109, 0.05)"
         });
 
         ctx.save();
         ctx.fillStyle = "#f8f4eb";
-        ctx.font = "700 15px Inter";
-        ctx.fillText("Presentation Pass", statusPanel.x + 20, statusPanel.y + 34);
-        ctx.fillStyle = "rgba(232, 222, 205, 0.78)";
-        ctx.font = "500 14px Inter";
-        ctx.fillText("Main menu now has Play, Level Select, and Settings.", statusPanel.x + 20, statusPanel.y + 72);
-        ctx.fillText("The palette and framing now push toward dark fantasy.", statusPanel.x + 20, statusPanel.y + 102);
-        ctx.fillText("Responsive scaling remains centered and intentional on any screen.", statusPanel.x + 20, statusPanel.y + 132);
+        ctx.font = "700 14px Inter";
+        ctx.fillText("Presentation Pass", statusPanel.x + 16, statusPanel.y + 28);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.74)";
+        ctx.font = "500 12px Inter";
+        ctx.fillText("Play, Level Select, and Settings now live in one clean menu flow.", statusPanel.x + 16, statusPanel.y + 58);
+        ctx.fillText("The palette pushes warmer and the shell scales more cleanly.", statusPanel.x + 16, statusPanel.y + 80);
+        ctx.fillText("This revision also reduces oversized UI and improves sharpness.", statusPanel.x + 16, statusPanel.y + 102);
         ctx.restore();
 
         this.ui.drawPanel(ctx, featurePanel.x, featurePanel.y, featurePanel.width, featurePanel.height, {
-            radius: 24,
+            radius: 22,
             fill: "rgba(14, 11, 18, 0.9)",
-            border: "rgba(255,232,196,0.1)",
-            glow: "rgba(141, 167, 255, 0.08)"
+            border: "rgba(255,232,196,0.09)",
+            glow: "rgba(141, 167, 255, 0.06)"
         });
 
         ctx.save();
         ctx.fillStyle = "#f8f4eb";
-        ctx.font = "700 15px Inter";
-        ctx.fillText("What Feels Better Now", featurePanel.x + 20, featurePanel.y + 34);
-        ctx.fillStyle = "rgba(232, 222, 205, 0.76)";
-        ctx.font = "500 14px Inter";
-        ctx.fillText("Clearer hierarchy between title, actions, and supporting info", featurePanel.x + 20, featurePanel.y + 72);
-        ctx.fillText("Rounded panels and warmer accents replace the older flat look", featurePanel.x + 20, featurePanel.y + 102);
-        ctx.fillText("Menu navigation now reads more like a finished game shell", featurePanel.x + 20, featurePanel.y + 132);
+        ctx.font = "700 14px Inter";
+        ctx.fillText("What Feels Better", featurePanel.x + 16, featurePanel.y + 28);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.74)";
+        ctx.font = "500 12px Inter";
+        ctx.fillText("Buttons read faster and the screen gives more space back to the game.", featurePanel.x + 16, featurePanel.y + 58);
+        ctx.fillText("Panels feel more supportive instead of dominating the scene.", featurePanel.x + 16, featurePanel.y + 80);
+        ctx.fillText("Sharper rendering helps the typography look more stable.", featurePanel.x + 16, featurePanel.y + 102);
         ctx.restore();
 
         this.ui.drawPanel(ctx, infoPanel.x, infoPanel.y, infoPanel.width, infoPanel.height, {
-            radius: 24,
+            radius: 22,
             fill: "rgba(12, 10, 16, 0.9)",
-            border: "rgba(255,232,196,0.1)",
-            glow: "rgba(126, 215, 178, 0.07)"
+            border: "rgba(255,232,196,0.09)",
+            glow: "rgba(126, 215, 178, 0.06)"
         });
 
         ctx.save();
         ctx.fillStyle = "#f8f4eb";
-        ctx.font = "700 15px Inter";
-        ctx.fillText("Battle Readiness", infoPanel.x + 20, infoPanel.y + 34);
-        ctx.fillStyle = "rgba(232, 222, 205, 0.76)";
-        ctx.font = "500 14px Inter";
-        ctx.fillText("Choose a battlefield, place towers in valid zones, and stop the push.", infoPanel.x + 20, infoPanel.y + 74);
-        ctx.fillText("Use Settings to control volume before a run starts.", infoPanel.x + 20, infoPanel.y + 104);
-        ctx.fillText("Next passes can now focus on feedback, clarity, and progression.", infoPanel.x + 20, infoPanel.y + 134);
+        ctx.font = "700 14px Inter";
+        ctx.fillText("Quick Brief", infoPanel.x + 16, infoPanel.y + 28);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.74)";
+        ctx.font = "500 12px Inter";
+        ctx.fillText("Choose a battlefield, build on marked circles, and protect the exit.", infoPanel.x + 16, infoPanel.y + 56);
+        ctx.fillText("Use Settings to tune volume before a run starts.", infoPanel.x + 16, infoPanel.y + 76);
+        ctx.fillText("Next milestones can now focus on feedback, clarity, and progression.", infoPanel.x + 16, infoPanel.y + 96);
         ctx.restore();
     }
 }

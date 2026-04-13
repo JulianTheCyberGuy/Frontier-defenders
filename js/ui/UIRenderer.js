@@ -1,55 +1,61 @@
 import { UI_THEME } from "../config.js";
 
 export default class UIRenderer {
-    constructor(canvas) {
+    constructor(canvas, theme = UI_THEME) {
         this.canvas = canvas;
-        this.theme = UI_THEME;
+        this.theme = theme;
+    }
+
+    get logicalWidth() {
+        return this.canvas.logicalWidth ?? this.canvas.width;
+    }
+
+    get logicalHeight() {
+        return this.canvas.logicalHeight ?? this.canvas.height;
     }
 
     getPointerPosition(event) {
-        const bounds = this.canvas.getBoundingClientRect();
-        const scaleX = this.canvas.width / bounds.width;
-        const scaleY = this.canvas.height / bounds.height;
-
+        const rect = this.canvas.getBoundingClientRect();
         return {
-            x: (event.clientX - bounds.left) * scaleX,
-            y: (event.clientY - bounds.top) * scaleY
+            x: (event.clientX - rect.left) * (this.logicalWidth / rect.width),
+            y: (event.clientY - rect.top) * (this.logicalHeight / rect.height)
         };
     }
 
     getMainMenuLayout() {
-        const { width, height } = this.canvas;
+        const width = this.logicalWidth;
+        const height = this.logicalHeight;
         const frame = {
-            x: 28,
-            y: 26,
-            width: width - 56,
-            height: height - 52
+            x: 32,
+            y: 28,
+            width: width - 64,
+            height: height - 56
         };
         const hero = {
-            x: frame.x + 26,
-            y: frame.y + 28,
-            width: Math.floor(frame.width * 0.56),
-            height: frame.height - 56
+            x: frame.x + 30,
+            y: frame.y + 26,
+            width: 488,
+            height: frame.height - 52
         };
-        const sideX = hero.x + hero.width + 22;
+        const sideX = hero.x + hero.width + 20;
         const sideWidth = frame.x + frame.width - sideX - 24;
         const statusPanel = {
             x: sideX,
             y: hero.y,
             width: sideWidth,
-            height: 182
+            height: 146
         };
         const featurePanel = {
             x: sideX,
-            y: statusPanel.y + statusPanel.height + 18,
+            y: statusPanel.y + statusPanel.height + 16,
             width: sideWidth,
-            height: 154
+            height: 134
         };
         const infoPanel = {
             x: sideX,
-            y: featurePanel.y + featurePanel.height + 18,
+            y: featurePanel.y + featurePanel.height + 16,
             width: sideWidth,
-            height: hero.height - statusPanel.height - featurePanel.height - 36
+            height: hero.height - statusPanel.height - featurePanel.height - 32
         };
 
         return {
@@ -59,20 +65,21 @@ export default class UIRenderer {
             featurePanel,
             infoPanel,
             buttons: {
-                start: { x: hero.x, y: hero.y + 250, width: 190, height: 56 },
-                levels: { x: hero.x + 206, y: hero.y + 250, width: 176, height: 56 },
-                settings: { x: hero.x + 398, y: hero.y + 250, width: 160, height: 56 }
+                start: { x: hero.x, y: hero.y + 238, width: 168, height: 48 },
+                levels: { x: hero.x + 180, y: hero.y + 238, width: 156, height: 48 },
+                settings: { x: hero.x + 348, y: hero.y + 238, width: 140, height: 48 }
             },
             featurePills: [
-                { x: hero.x, y: hero.y + 324, width: 152, height: 34 },
-                { x: hero.x + 164, y: hero.y + 324, width: 158, height: 34 },
-                { x: hero.x + 334, y: hero.y + 324, width: 176, height: 34 }
+                { x: hero.x, y: hero.y + 312, width: 132, height: 30 },
+                { x: hero.x + 144, y: hero.y + 312, width: 154, height: 30 },
+                { x: hero.x + 310, y: hero.y + 312, width: 178, height: 30 }
             ]
         };
     }
 
     getLevelSelectLayout(cardCount) {
-        const { width, height } = this.canvas;
+        const width = this.logicalWidth;
+        const height = this.logicalHeight;
         const frame = {
             x: 34,
             y: 28,
@@ -80,17 +87,17 @@ export default class UIRenderer {
             height: height - 56
         };
         const header = {
-            x: frame.x + 22,
-            y: frame.y + 22,
-            width: frame.width - 44,
-            height: 92
+            x: frame.x + 20,
+            y: frame.y + 18,
+            width: frame.width - 40,
+            height: 78
         };
         const contentY = header.y + header.height + 18;
-        const gap = 16;
-        const cardWidth = Math.floor((frame.width - 44 - gap * (cardCount - 1)) / cardCount);
-        const cardHeight = frame.height - (contentY - frame.y) - 26;
+        const gap = 14;
+        const cardWidth = Math.floor((frame.width - 40 - gap * (cardCount - 1)) / cardCount);
+        const cardHeight = frame.height - (contentY - frame.y) - 22;
         const cards = Array.from({ length: cardCount }, (_, index) => ({
-            x: frame.x + 22 + index * (cardWidth + gap),
+            x: frame.x + 20 + index * (cardWidth + gap),
             y: contentY,
             width: cardWidth,
             height: cardHeight
@@ -100,28 +107,29 @@ export default class UIRenderer {
             frame,
             header,
             cards,
-            backButton: { x: frame.x + 22, y: frame.y + 20, width: 120, height: 44 }
+            backButton: { x: frame.x + 20, y: frame.y + 18, width: 112, height: 38 }
         };
     }
 
     getSettingsLayout() {
-        const { width, height } = this.canvas;
+        const width = this.logicalWidth;
+        const height = this.logicalHeight;
         const frame = {
-            x: 140,
-            y: 52,
-            width: width - 280,
-            height: height - 104
+            x: 176,
+            y: 56,
+            width: width - 352,
+            height: height - 112
         };
         const header = {
-            x: frame.x + 24,
-            y: frame.y + 22,
-            width: frame.width - 48,
-            height: 96
+            x: frame.x + 20,
+            y: frame.y + 18,
+            width: frame.width - 40,
+            height: 78
         };
         const cards = {
-            audio: { x: frame.x + 24, y: header.y + header.height + 18, width: frame.width - 48, height: 116 },
-            display: { x: frame.x + 24, y: header.y + header.height + 150, width: frame.width - 48, height: 108 },
-            style: { x: frame.x + 24, y: header.y + header.height + 274, width: frame.width - 48, height: 94 }
+            audio: { x: frame.x + 20, y: header.y + header.height + 16, width: frame.width - 40, height: 92 },
+            display: { x: frame.x + 20, y: header.y + header.height + 122, width: frame.width - 40, height: 88 },
+            style: { x: frame.x + 20, y: header.y + header.height + 224, width: frame.width - 40, height: 82 }
         };
 
         return {
@@ -129,28 +137,29 @@ export default class UIRenderer {
             header,
             cards,
             buttons: {
-                volume: { x: cards.audio.x + cards.audio.width - 176, y: cards.audio.y + 34, width: 146, height: 46 },
-                back: { x: frame.x + frame.width - 152, y: frame.y + frame.height - 68, width: 128, height: 46 }
+                volume: { x: cards.audio.x + cards.audio.width - 150, y: cards.audio.y + 24, width: 122, height: 38 },
+                back: { x: frame.x + frame.width - 130, y: frame.y + frame.height - 54, width: 110, height: 38 }
             }
         };
     }
 
     getGameLayout(towerCount) {
-        const { width, height } = this.canvas;
-        const padding = 18;
-        const gap = 16;
-        const topBar = { x: padding, y: padding, width: width - padding * 2, height: 72 };
+        const width = this.logicalWidth;
+        const height = this.logicalHeight;
+        const padding = 14;
+        const gap = 12;
+        const topBar = { x: padding, y: padding, width: width - padding * 2, height: 58 };
         const sidebar = {
-            x: width - padding - 286,
+            x: width - padding - 236,
             y: topBar.y + topBar.height + gap,
-            width: 286,
+            width: 236,
             height: height - (topBar.y + topBar.height + gap) - padding
         };
         const towerDock = {
             x: padding,
-            y: height - padding - 98,
+            y: height - padding - 82,
             width: sidebar.x - padding - gap,
-            height: 98
+            height: 82
         };
         const worldRect = {
             x: padding,
@@ -158,36 +167,36 @@ export default class UIRenderer {
             width: towerDock.width,
             height: towerDock.y - (topBar.y + topBar.height + gap) - gap
         };
-        const towerGap = 10;
-        const towerButtonWidth = Math.floor((towerDock.width - 28 - towerGap * (towerCount - 1)) / towerCount);
+        const towerGap = 8;
+        const towerButtonWidth = Math.floor((towerDock.width - 20 - towerGap * (towerCount - 1)) / towerCount);
         const towerButtonRects = Array.from({ length: towerCount }, (_, index) => ({
-            x: towerDock.x + 14 + index * (towerButtonWidth + towerGap),
-            y: towerDock.y + 13,
+            x: towerDock.x + 10 + index * (towerButtonWidth + towerGap),
+            y: towerDock.y + 10,
             width: towerButtonWidth,
-            height: towerDock.height - 26
+            height: towerDock.height - 20
         }));
 
-        const actionWidth = sidebar.width - 28;
+        const actionWidth = sidebar.width - 24;
         const upgradeButtons = [
-            { x: sidebar.x + 14, y: sidebar.y + sidebar.height - 138, width: actionWidth, height: 44, id: "left" },
-            { x: sidebar.x + 14, y: sidebar.y + sidebar.height - 86, width: actionWidth, height: 44, id: "right" }
+            { x: sidebar.x + 12, y: sidebar.y + sidebar.height - 122, width: actionWidth, height: 38, id: "left" },
+            { x: sidebar.x + 12, y: sidebar.y + sidebar.height - 76, width: actionWidth, height: 38, id: "right" }
         ];
         const sellButton = {
-            x: sidebar.x + 14,
-            y: sidebar.y + sidebar.height - 34,
+            x: sidebar.x + 12,
+            y: sidebar.y + sidebar.height - 30,
             width: actionWidth,
-            height: 44
+            height: 38
         };
         const overlay = {
-            x: width / 2 - 232,
-            y: height / 2 - 126,
-            width: 464,
-            height: 252
+            x: width / 2 - 216,
+            y: height / 2 - 116,
+            width: 432,
+            height: 232
         };
         const overlayButtons = {
-            restart: { x: overlay.x + 36, y: overlay.y + 156, width: 118, height: 46 },
-            levels: { x: overlay.x + 172, y: overlay.y + 156, width: 126, height: 46 },
-            menu: { x: overlay.x + 316, y: overlay.y + 156, width: 112, height: 46 }
+            restart: { x: overlay.x + 30, y: overlay.y + 150, width: 108, height: 40 },
+            levels: { x: overlay.x + 154, y: overlay.y + 150, width: 116, height: 40 },
+            menu: { x: overlay.x + 286, y: overlay.y + 150, width: 108, height: 40 }
         };
 
         return {
@@ -205,15 +214,15 @@ export default class UIRenderer {
     }
 
     drawBackdrop(ctx, palette = {}) {
-        const { width, height } = this.canvas;
-        const top = palette.top ?? "#16111c";
-        const bottom = palette.bottom ?? "#07060b";
-        const accent = palette.accent ?? "rgba(215, 176, 109, 0.13)";
-        const accentTwo = palette.accentTwo ?? "rgba(141, 167, 255, 0.1)";
+        const width = this.logicalWidth;
+        const height = this.logicalHeight;
+        const top = palette.top ?? "#101828";
+        const bottom = palette.bottom ?? "#060b14";
+        const accent = palette.accent ?? "rgba(96, 165, 250, 0.18)";
+        const accentTwo = palette.accentTwo ?? "rgba(126, 215, 178, 0.08)";
 
         const gradient = ctx.createLinearGradient(0, 0, 0, height);
         gradient.addColorStop(0, top);
-        gradient.addColorStop(0.52, "#140f18");
         gradient.addColorStop(1, bottom);
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
@@ -221,20 +230,16 @@ export default class UIRenderer {
         ctx.save();
         ctx.fillStyle = accent;
         ctx.beginPath();
-        ctx.arc(width * 0.16, height * 0.16, 190, 0, Math.PI * 2);
+        ctx.arc(width * 0.16, height * 0.15, 120, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = accentTwo;
         ctx.beginPath();
-        ctx.arc(width * 0.82, height * 0.24, 140, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "rgba(126, 215, 178, 0.08)";
-        ctx.beginPath();
-        ctx.arc(width * 0.84, height * 0.84, 220, 0, Math.PI * 2);
+        ctx.arc(width * 0.84, height * 0.2, 92, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
         ctx.save();
-        ctx.strokeStyle = "rgba(255, 244, 225, 0.03)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.025)";
         ctx.lineWidth = 1;
         for (let x = 0; x <= width; x += 32) {
             ctx.beginPath();
@@ -252,20 +257,20 @@ export default class UIRenderer {
     }
 
     drawPanel(ctx, x, y, width, height, options = {}) {
-        const radius = options.radius ?? 20;
+        const radius = options.radius ?? 18;
         const fill = options.fill ?? this.theme.colors.panel;
         const border = options.border ?? this.theme.colors.border;
-        const glow = options.glow ?? "rgba(215, 176, 109, 0.1)";
+        const glow = options.glow ?? "rgba(96, 165, 250, 0.12)";
 
         ctx.save();
         ctx.shadowColor = glow;
-        ctx.shadowBlur = 24;
+        ctx.shadowBlur = 18;
         this.roundRect(ctx, x, y, width, height, radius);
         ctx.fillStyle = fill;
         ctx.fill();
         ctx.shadowBlur = 0;
         ctx.strokeStyle = border;
-        ctx.lineWidth = 1.25;
+        ctx.lineWidth = 1;
         ctx.stroke();
         ctx.restore();
     }
@@ -274,39 +279,32 @@ export default class UIRenderer {
         const hovered = Boolean(options.hovered);
         const active = Boolean(options.active);
         const disabled = Boolean(options.disabled);
-        const danger = Boolean(options.danger);
-        const radius = options.radius ?? 16;
+        const radius = options.radius ?? 14;
         const fill = disabled
-            ? "rgba(88, 76, 76, 0.38)"
-            : danger
-                ? hovered
-                    ? "rgba(143, 67, 80, 0.96)"
-                    : "rgba(108, 46, 58, 0.92)"
-                : active
-                    ? "rgba(215, 176, 109, 0.94)"
-                    : hovered
-                        ? "rgba(78, 63, 113, 0.98)"
-                        : "rgba(28, 22, 37, 0.92)";
+            ? "rgba(88, 96, 116, 0.42)"
+            : active
+                ? "rgba(224, 180, 74, 0.92)"
+                : hovered
+                    ? "rgba(67, 114, 212, 0.96)"
+                    : "rgba(20, 30, 50, 0.9)";
         const border = disabled
             ? "rgba(255, 255, 255, 0.08)"
-            : danger
-                ? "rgba(233, 168, 177, 0.65)"
-                : active
-                    ? "rgba(255, 236, 190, 0.92)"
-                    : hovered
-                        ? "rgba(189, 171, 245, 0.78)"
-                        : "rgba(255, 232, 196, 0.14)";
+            : active
+                ? "rgba(255, 235, 177, 0.9)"
+                : hovered
+                    ? "rgba(181, 215, 255, 0.9)"
+                    : "rgba(255, 255, 255, 0.1)";
 
         this.drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, {
             radius,
             fill,
             border,
-            glow: hovered || active || danger ? "rgba(215, 176, 109, 0.18)" : "rgba(0, 0, 0, 0)"
+            glow: hovered || active ? "rgba(96, 165, 250, 0.14)" : "rgba(0, 0, 0, 0)"
         });
 
         ctx.save();
-        ctx.fillStyle = disabled ? "rgba(235, 239, 245, 0.55)" : active ? "#1d1402" : "#f8f4eb";
-        ctx.font = options.font ?? "600 15px Inter";
+        ctx.fillStyle = disabled ? "rgba(235, 239, 245, 0.55)" : active ? "#1a1300" : "#f5f8ff";
+        ctx.font = options.font ?? "600 14px Inter";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(label, rect.x + rect.width / 2, rect.y + rect.height / 2 + (options.textOffsetY ?? 0));
@@ -316,13 +314,13 @@ export default class UIRenderer {
     drawPill(ctx, x, y, text, options = {}) {
         const padX = options.padX ?? 12;
         const width = Math.max(options.minWidth ?? 0, ctx.measureText(text).width + padX * 2);
-        const rect = { x, y, width, height: options.height ?? 30 };
+        const rect = { x, y, width, height: options.height ?? 28 };
         this.drawButton(ctx, rect, text, {
             hovered: options.hovered,
             active: options.active,
             disabled: options.disabled,
             radius: rect.height / 2,
-            font: options.font ?? "600 13px Inter"
+            font: options.font ?? "600 12px Inter"
         });
         return rect;
     }
@@ -354,24 +352,24 @@ export default class UIRenderer {
         if (!lines || lines.length === 0) return;
 
         ctx.save();
-        ctx.font = "500 13px Inter";
-        const width = Math.max(...lines.map((line) => ctx.measureText(line).width)) + 24;
-        const height = lines.length * 18 + 20;
-        const tooltipX = Math.min(this.canvas.width - width - 14, Math.max(14, x));
-        const tooltipY = Math.min(this.canvas.height - height - 14, Math.max(14, y));
+        ctx.font = "500 12px Inter";
+        const width = Math.max(...lines.map((line) => ctx.measureText(line).width)) + 20;
+        const height = lines.length * 16 + 18;
+        const tooltipX = Math.min(this.logicalWidth - width - 12, Math.max(12, x));
+        const tooltipY = Math.min(this.logicalHeight - height - 12, Math.max(12, y));
 
         this.drawPanel(ctx, tooltipX, tooltipY, width, height, {
-            radius: 14,
+            radius: 12,
             fill: "rgba(10, 8, 14, 0.95)",
             border: "rgba(255, 232, 196, 0.15)",
-            glow: "rgba(15, 23, 42, 0.55)"
+            glow: "rgba(15, 23, 42, 0.4)"
         });
 
         ctx.fillStyle = "#f8f1e5";
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         lines.forEach((line, index) => {
-            ctx.fillText(line, tooltipX + 12, tooltipY + 10 + index * 18);
+            ctx.fillText(line, tooltipX + 10, tooltipY + 8 + index * 16);
         });
         ctx.restore();
     }

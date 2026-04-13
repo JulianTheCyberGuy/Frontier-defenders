@@ -4,9 +4,16 @@ import SoundManager from "./engine/SoundManager.js";
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from "./config.js";
 
 const canvas = document.getElementById("gameCanvas");
-canvas.width = DESIGN_WIDTH;
-canvas.height = DESIGN_HEIGHT;
+canvas.logicalWidth = DESIGN_WIDTH;
+canvas.logicalHeight = DESIGN_HEIGHT;
 canvas.style.touchAction = "none";
+
+function applyCanvasResolution() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.renderScale = dpr;
+    canvas.width = Math.round(DESIGN_WIDTH * dpr);
+    canvas.height = Math.round(DESIGN_HEIGHT * dpr);
+}
 
 function resizeCanvasDisplay() {
     const shellPadding = window.innerWidth <= 900 ? 24 : 36;
@@ -24,6 +31,7 @@ function resizeCanvasDisplay() {
 
     canvas.style.width = `${Math.floor(displayWidth)}px`;
     canvas.style.height = `${Math.floor(displayHeight)}px`;
+    applyCanvasResolution();
 }
 
 resizeCanvasDisplay();
