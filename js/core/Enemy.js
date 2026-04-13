@@ -1,10 +1,12 @@
 export default class Enemy {
-    constructor(path, stats = {}) {
+    constructor(path, stats = {}, scene = null) {
         this.path = path;
-        this.i = 0;
+        this.scene = scene;
+        this.i = stats.startPathIndex ?? 0;
 
-        this.x = path[0].x;
-        this.y = path[0].y;
+        const startPoint = path[this.i] ?? path[0] ?? { x: 0, y: 0 };
+        this.x = stats.startX ?? startPoint.x;
+        this.y = stats.startY ?? startPoint.y;
 
         this.role = stats.role ?? "grunt";
         this.name = stats.name ?? "Enemy";
@@ -17,68 +19,50 @@ export default class Enemy {
         this.radius = stats.radius ?? 10;
         this.color = stats.color ?? "red";
 
-        this.isBoss = stats.isBoss ?? false;
-        this.immuneSlow = stats.immuneSlow ?? false;
-        this.spawnMinionRole = stats.spawnMinionRole ?? null;
-        this.spawnMinionCount = stats.spawnMinionCount ?? 0;
-        this.spawnMinionInterval = stats.spawnMinionInterval ?? 0;
-        this.minionTimer = this.spawnMinionInterval;
-        this.enrageThreshold = stats.enrageThreshold ?? 0.5;
-        this.enraged = false;
-
         this.dead = false;
         this.escaped = false;
-        this.stunned = false;
+        this.hasProcessedOutcome = false;
+        this.pendingSpawnRoles = Array.isArray(stats.splitInto) ? [...stats.splitInto] : [];
+        this.damageReduction = stats.damageReduction ?? 0;
+        this.slowImmune = Boolean(stats.slowImmune);
+        this.stunImmune = Boolean(stats.stunImmune);
+        this.childStats = stats.childStats ? { ...stats.childStats } : {};
 
         this.effects = [];
         this.flashTimer = 0;
-        this.backstabbed = false;
+        this.stunned = false;
+        this.typeBadge = stats.typeBadge ?? (this.role ? this.role[0].toUpperCase() : "E");
     }
 
     applyEffect(effect) {
-        if ((effect.type === "slow" || effect.type === "freeze") && this.immuneSlow) {
-            return false;
+        if (!effect || this.dead) return;
+
+        if ((effect.type === "slow" || effect.type === "freeze") && this.slowImmune) return;
+        if (effect.type === "stun" && this.stunImmune) return;
+
+        const nextEffect = { ...effect };
+
+        if (nextEffect.type === "burn") {
+            nextEffect.interval = nextEffect.interval ?? 0.5;
+            nextEffect.tick = nextEffect.tick ?? nextEffect.interval;
         }
 
-        const existing = this.effects.find(active => active.type === effect.type);
-
-        if (existing) {
-            existing.time = Math.max(existing.time, effect.time ?? 0);
-
-            if (effect.type === "slow" || effect.type === "freeze") {
-                existing.value = Math.min(existing.value ?? 1, effect.value ?? 1);
-            }
-
-            if (effect.type === "burn") {
-                existing.damage = Math.max(existing.damage ?? 0, effect.damage ?? 0);
-                existing.interval = effect.interval ?? existing.interval ?? 0.5;
-                existing.tick = Math.min(
-                    existing.tick ?? existing.interval,
-                    effect.tick ?? effect.interval ?? existing.interval
-                );
-                existing.source = effect.source ?? existing.source;
-            }
-
-            return true;
-        }
-
-        this.effects.push({ ...effect });
-        return true;
+        this.effects.push(nextEffect);
     }
 
-    updateEffects(dt, scene) {
+    updateEffects(dt) {
         this.speed = this.baseSpeed;
         this.stunned = false;
 
         for (const effect of this.effects) {
             effect.time -= dt;
 
-            if (effect.type === "slow" && !this.immuneSlow) {
-                this.speed *= effect.value;
+            if (effect.type === "slow") {
+                this.speed *= effect.value ?? 0.8;
             }
 
-            if (effect.type === "freeze" && !this.immuneSlow) {
-                this.speed *= effect.value;
+            if (effect.type === "freeze") {
+                this.speed *= effect.value ?? 0.45;
             }
 
             if (effect.type === "stun") {
@@ -89,13 +73,12 @@ export default class Enemy {
             if (effect.type === "burn") {
                 effect.tick -= dt;
                 if (effect.tick <= 0) {
-                    const didDamage = this.takeDamage(effect.damage);
-                    if (didDamage) {
-                        const color = effect.source === "poison" ? "#c084fc" : "#ff9f43";
-                        scene?.spawnDamageNumber(this.x - 8, this.y - 18, effect.damage, color);
-                        scene?.spawnImpact(this.x, this.y, color, 10);
-                    }
-                    effect.tick = effect.interval;
+                    this.takeDamage(effect.damage ?? 1, {
+                        ignoreReduction: true,
+                        color: "#ff8c42",
+                        impactColor: "#ff8c42"
+                    });
+                    effect.tick = effect.interval ?? 0.5;
                 }
             }
         }
@@ -103,43 +86,10 @@ export default class Enemy {
         this.effects = this.effects.filter(effect => effect.time > 0);
     }
 
-    updateBossBehavior(dt, scene) {
-        if (!this.isBoss || this.dead || this.escaped) {
-            return;
-        }
-
-        if (!this.enraged && this.hp <= this.maxHp * this.enrageThreshold) {
-            this.enraged = true;
-            this.baseSpeed += 10;
-            this.speed = this.baseSpeed;
-            scene?.spawnImpact(this.x, this.y, "#f43f5e", 30);
-            scene?.spawnDamageNumber(this.x - 24, this.y - 24, "RAGE", "#fda4af");
-        }
-
-        if (!this.spawnMinionRole || this.spawnMinionCount <= 0 || this.spawnMinionInterval <= 0) {
-            return;
-        }
-
-        this.minionTimer -= dt;
-        if (this.minionTimer > 0) {
-            return;
-        }
-
-        this.minionTimer = this.spawnMinionInterval;
-
-        for (let i = 0; i < this.spawnMinionCount; i++) {
-            scene?.spawnEnemy(this.spawnMinionRole);
-        }
-
-        scene?.spawnImpact(this.x, this.y, "#f87171", 22);
-        scene?.spawnDamageNumber(this.x - 18, this.y - 20, "SUMMON", "#fecaca");
-    }
-
-    update(dt, scene) {
+    update(dt) {
         if (this.dead || this.escaped) return;
 
-        this.updateEffects(dt, scene);
-        this.updateBossBehavior(dt, scene);
+        this.updateEffects(dt);
 
         if (this.flashTimer > 0) this.flashTimer -= dt;
 
@@ -148,9 +98,7 @@ export default class Enemy {
             return;
         }
 
-        if (this.stunned) {
-            return;
-        }
+        if (this.stunned) return;
 
         const target = this.path[this.i + 1];
         const dx = target.x - this.x;
@@ -166,11 +114,20 @@ export default class Enemy {
         this.y += (dy / dist) * this.speed * dt;
     }
 
-    takeDamage(amount) {
+    takeDamage(amount, options = {}) {
         if (this.dead) return false;
 
-        this.hp -= amount;
+        const reducedAmount = options.ignoreReduction
+            ? amount
+            : Math.max(1, Math.round(amount * (1 - this.damageReduction)));
+
+        this.hp -= reducedAmount;
         this.flashTimer = 0.1;
+
+        if (this.scene) {
+            this.scene.spawnDamageNumber(this.x, this.y - this.radius - 8, reducedAmount, options.color ?? "#ffffff");
+            this.scene.spawnImpact(this.x, this.y, options.impactColor ?? "#ffffff", options.maxImpactRadius ?? 12);
+        }
 
         if (this.hp <= 0) {
             this.hp = 0;
@@ -180,6 +137,18 @@ export default class Enemy {
         return true;
     }
 
+    getSplitSpawnData() {
+        if (!this.pendingSpawnRoles.length) return [];
+
+        return this.pendingSpawnRoles.map((role, index) => ({
+            role,
+            x: this.x + (index % 2 === 0 ? -8 : 8),
+            y: this.y + (index < 2 ? -6 : 6),
+            pathIndex: this.i,
+            inherited: { ...this.childStats }
+        }));
+    }
+
     hasEffect(type) {
         return this.effects.some(effect => effect.type === type);
     }
@@ -187,131 +156,54 @@ export default class Enemy {
     render(ctx) {
         if (this.dead) return;
 
-        const frozen = !this.immuneSlow && this.hasEffect("freeze");
-        const slowed = !frozen && !this.immuneSlow && this.hasEffect("slow");
-        const burning = this.hasEffect("burn");
-        const stunned = this.hasEffect("stun");
+        const fill = this.flashTimer > 0 ? "white" : this.color;
 
         ctx.save();
-
-        if (slowed || frozen) {
-            ctx.fillStyle = frozen ? "rgba(125, 211, 252, 0.30)" : "rgba(96, 165, 250, 0.22)";
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius + 4, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        if (burning) {
-            ctx.strokeStyle = "rgba(251, 146, 60, 0.95)";
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius + 5.5, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-
-        if (this.isBoss) {
-            ctx.fillStyle = "rgba(239, 68, 68, 0.16)";
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius + 8, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        ctx.fillStyle = this.flashTimer > 0 ? "white" : this.color;
+        ctx.fillStyle = fill;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.lineWidth = this.isBoss ? 3 : 2;
-        ctx.strokeStyle = this.isBoss ? "#fee2e2" : frozen ? "#bae6fd" : slowed ? "#93c5fd" : "rgba(0,0,0,0.35)";
-        ctx.stroke();
-
-        if (stunned) {
-            ctx.strokeStyle = "#fde68a";
-            ctx.lineWidth = 2;
+        if (this.damageReduction > 0) {
+            ctx.strokeStyle = "rgba(120, 190, 255, 0.9)";
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(this.x - 5, this.y - this.radius - 6);
-            ctx.lineTo(this.x - 1, this.y - this.radius - 12);
-            ctx.lineTo(this.x + 1, this.y - this.radius - 8);
-            ctx.lineTo(this.x + 5, this.y - this.radius - 14);
+            ctx.arc(this.x, this.y, this.radius + 4, 0, Math.PI * 2);
             ctx.stroke();
         }
 
-        if (this.isBoss) {
-            this.drawBossCrown(ctx);
-        }
-
-        ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.font = this.isBoss ? "bold 10px Arial" : "bold 9px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(this.name[0], this.x, this.y + 0.5);
-
-        this.drawHealthBar(ctx);
-        this.drawStatusIcons(ctx, { slowed, frozen, burning, stunned });
-
-        ctx.restore();
-    }
-
-    drawBossCrown(ctx) {
-        const crownY = this.y - this.radius - 6;
-
-        ctx.fillStyle = "#fbbf24";
-        ctx.beginPath();
-        ctx.moveTo(this.x - 10, crownY + 4);
-        ctx.lineTo(this.x - 6, crownY - 6);
-        ctx.lineTo(this.x, crownY + 1);
-        ctx.lineTo(this.x + 6, crownY - 6);
-        ctx.lineTo(this.x + 10, crownY + 4);
-        ctx.closePath();
-        ctx.fill();
-    }
-
-    drawHealthBar(ctx) {
-        const width = this.isBoss ? Math.max(44, this.radius * 2.8) : Math.max(18, this.radius * 2.2);
-        const height = this.isBoss ? 6 : 4;
-        const x = this.x - width / 2;
-        const y = this.y - this.radius - (this.isBoss ? 16 : 10);
-        const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 0;
-
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(x, y, width, height);
-
-        ctx.fillStyle = ratio > 0.5 ? "#22c55e" : ratio > 0.25 ? "#f59e0b" : "#ef4444";
-        ctx.fillRect(x, y, width * ratio, height);
-    }
-
-    drawStatusIcons(ctx, states) {
-        const iconY = this.y - this.radius - (this.isBoss ? 26 : 18);
-        let iconX = this.x;
-
-        const icons = [];
-        if (this.immuneSlow) icons.push({ label: "I", fill: "#38bdf8" });
-        else if (states.frozen) icons.push({ label: "F", fill: "#7dd3fc" });
-        else if (states.slowed) icons.push({ label: "S", fill: "#60a5fa" });
-        if (states.burning) icons.push({ label: "B", fill: "#fb923c" });
-        if (states.stunned) icons.push({ label: "T", fill: "#facc15" });
-
-        if (icons.length === 0) {
-            return;
-        }
-
-        if (icons.length > 1) {
-            iconX -= ((icons.length - 1) * 8) / 2;
-        }
-
-        for (const icon of icons) {
-            ctx.fillStyle = icon.fill;
+        if (this.hasEffect("burn")) {
+            ctx.strokeStyle = "#ff8c42";
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(iconX, iconY, 6, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = "#0f172a";
-            ctx.font = "bold 8px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(icon.label, iconX, iconY + 0.5);
-
-            iconX += 8;
+            ctx.arc(this.x, this.y, this.radius + 2, 0, Math.PI * 2);
+            ctx.stroke();
         }
+
+        if (this.hasEffect("slow") || this.hasEffect("freeze")) {
+            ctx.fillStyle = this.hasEffect("freeze") ? "rgba(180, 235, 255, 0.35)" : "rgba(110, 180, 255, 0.22)";
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        if (this.hasEffect("stun")) {
+            ctx.strokeStyle = "#f4d03f";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y - this.radius - 7, 6, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        ctx.fillRect(this.x - this.radius, this.y - this.radius - 12, this.radius * 2, 5);
+        ctx.fillStyle = "#4caf50";
+        ctx.fillRect(this.x - this.radius, this.y - this.radius - 12, (this.hp / this.maxHp) * this.radius * 2, 5);
+
+        ctx.fillStyle = "white";
+        ctx.font = "bold 10px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(this.typeBadge, this.x, this.y + 3);
+        ctx.restore();
     }
 }

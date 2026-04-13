@@ -20,22 +20,9 @@ export default {
         buildTile: "rgba(100, 190, 120, 0.16)",
         buildTileBorder: "rgba(210, 255, 220, 0.18)"
     },
-    boss: {
-        name: "Dire Treant",
-        hp: 1100,
-        speed: 24,
-        reward: 120,
-        radius: 22,
-        color: "#7f1d1d",
-        immuneSlow: true,
-        spawnMinionRole: "scout",
-        spawnMinionCount: 2,
-        spawnMinionInterval: 8,
-        enrageThreshold: 0.45
-    },
     waves: [
-        ["grunt", "grunt", "scout", "grunt", "scout"],
-        ["grunt", "grunt", "tank", "scout", "grunt", "scout"],
-        ["tank", "grunt", "scout", "tank", "grunt", "elite", "boss"]
+        ["grunt", "grunt", "scout", "splitter", "scout"],
+        ["grunt", "shield", "tank", "scout", "splitter", "swarm"],
+        ["tank", "shield", "splitter", "tank", "grunt", "swarm", "swarm"]
     ]
 };

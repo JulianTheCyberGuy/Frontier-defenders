@@ -6,17 +6,58 @@ export default class Projectile {
         this.damage = damage;
         this.dead = false;
 
-        this.speed = options.speed ?? 300;
+        this.speed = options.speed ?? 320;
+        this.color = options.color ?? "#ffd54f";
         this.radius = options.radius ?? 4;
-        this.color = options.color ?? "yellow";
         this.onHit = options.onHit;
-        this.pierceCount = options.pierceCount ?? 0;
+        this.scene = options.scene ?? null;
+        this.pierce = options.pierce ?? 0;
         this.hitEnemies = new Set();
-        this.chainColor = options.chainColor ?? this.color;
-        this.labelColor = options.labelColor ?? "#ffffff";
     }
 
-    update(dt, scene) {
+    hitTarget(target) {
+        if (!target || target.dead || this.hitEnemies.has(target)) return;
+
+        target.takeDamage(this.damage, {
+            color: this.color,
+            impactColor: this.color,
+            maxImpactRadius: 14
+        });
+
+        this.hitEnemies.add(target);
+        if (this.onHit) this.onHit(target, this.scene);
+
+        if (this.pierce > 0) {
+            this.pierce -= 1;
+            const nextTarget = this.findNextTarget();
+            if (nextTarget) {
+                this.target = nextTarget;
+                return;
+            }
+        }
+
+        this.dead = true;
+    }
+
+    findNextTarget() {
+        if (!this.scene) return null;
+
+        let bestTarget = null;
+        let bestDistance = Infinity;
+
+        for (const enemy of this.scene.enemies) {
+            if (enemy.dead || enemy.escaped || this.hitEnemies.has(enemy)) continue;
+            const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+            if (dist < 170 && dist < bestDistance) {
+                bestDistance = dist;
+                bestTarget = enemy;
+            }
+        }
+
+        return bestTarget;
+    }
+
+    update(dt) {
         if (!this.target || this.target.dead || this.target.escaped) {
             this.dead = true;
             return;
@@ -26,32 +67,8 @@ export default class Projectile {
         const dy = this.target.y - this.y;
         const dist = Math.hypot(dx, dy);
 
-        if (dist < this.radius + this.target.radius * 0.5) {
-            this.hitEnemies.add(this.target);
-
-            if (this.damage > 0) {
-                const didDamage = this.target.takeDamage(this.damage);
-                if (didDamage) {
-                    scene?.spawnDamageNumber(this.target.x - 8, this.target.y - 16, this.damage, this.labelColor);
-                }
-            }
-
-            scene?.spawnImpact(this.target.x, this.target.y, this.color, 12);
-
-            if (this.onHit) {
-                this.onHit(this.target, scene, this);
-            }
-
-            if (this.pierceCount > 0) {
-                const nextTarget = scene?.getPierceContinuationTarget(this.target, this.hitEnemies);
-                if (nextTarget) {
-                    this.target = nextTarget;
-                    this.pierceCount -= 1;
-                    return;
-                }
-            }
-
-            this.dead = true;
+        if (dist < this.target.radius + 5) {
+            this.hitTarget(this.target);
             return;
         }
 

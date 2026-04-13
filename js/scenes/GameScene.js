@@ -19,10 +19,32 @@ export default class GameScene {
         ];
 
         this.enemyTypes = {
-            scout: { role: "scout", name: "Scout", hp: 55, speed: 90, reward: 8, radius: 8, color: "#ff7b72" },
-            grunt: { role: "grunt", name: "Grunt", hp: 120, speed: 52, reward: 12, radius: 10, color: "#d29922" },
-            tank: { role: "tank", name: "Tank", hp: 240, speed: 34, reward: 20, radius: 13, color: "#8b949e" },
-            elite: { role: "elite", name: "Elite", hp: 360, speed: 46, reward: 28, radius: 14, color: "#a371f7" }
+            scout: { role: "scout", name: "Scout", hp: 55, speed: 90, reward: 8, radius: 8, color: "#ff7b72", typeBadge: "S" },
+            grunt: { role: "grunt", name: "Grunt", hp: 120, speed: 52, reward: 12, radius: 10, color: "#d29922", typeBadge: "G" },
+            tank: { role: "tank", name: "Tank", hp: 240, speed: 34, reward: 20, radius: 13, color: "#8b949e", typeBadge: "T" },
+            swarm: { role: "swarm", name: "Swarmling", hp: 30, speed: 138, reward: 4, radius: 6, color: "#ffb347", typeBadge: "W" },
+            splitter: {
+                role: "splitter",
+                name: "Splitter",
+                hp: 135,
+                speed: 60,
+                reward: 15,
+                radius: 11,
+                color: "#c678dd",
+                splitInto: ["swarm", "swarm"],
+                typeBadge: "P"
+            },
+            shield: {
+                role: "shield",
+                name: "Bulwark",
+                hp: 175,
+                speed: 45,
+                reward: 18,
+                radius: 12,
+                color: "#58a6ff",
+                damageReduction: 0.45,
+                typeBadge: "B"
+            }
         };
 
         this.towerCosts = {
@@ -53,9 +75,7 @@ export default class GameScene {
         this.damageNumbers = [];
         this.impactEffects = [];
         this.fireZones = [];
-        this.chainEffects = [];
         this.occupiedBuildTiles = new Set();
-        this.activeBoss = null;
 
         this.handleClick = this.handleClick.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -86,9 +106,7 @@ export default class GameScene {
         this.damageNumbers = [];
         this.impactEffects = [];
         this.fireZones = [];
-        this.chainEffects = [];
         this.occupiedBuildTiles = new Set();
-        this.activeBoss = null;
 
         this.gold = 250;
         this.lives = 20;
@@ -120,38 +138,9 @@ export default class GameScene {
         this.spawnTimer = 0;
     }
 
-    buildBossStats() {
-        const bossStats = this.currentLevel.data.boss ?? {};
-        return {
-            role: "boss",
-            isBoss: true,
-            name: bossStats.name ?? "Boss",
-            hp: bossStats.hp ?? 1200,
-            speed: bossStats.speed ?? 28,
-            reward: bossStats.reward ?? 120,
-            radius: bossStats.radius ?? 22,
-            color: bossStats.color ?? "#dc2626",
-            immuneSlow: bossStats.immuneSlow ?? true,
-            spawnMinionRole: bossStats.spawnMinionRole ?? "scout",
-            spawnMinionCount: bossStats.spawnMinionCount ?? 2,
-            spawnMinionInterval: bossStats.spawnMinionInterval ?? 8,
-            enrageThreshold: bossStats.enrageThreshold ?? 0.45
-        };
-    }
-
-    spawnEnemy(role) {
-        const enemyStats = role === "boss"
-            ? this.buildBossStats()
-            : this.enemyTypes[role] ?? this.enemyTypes.grunt;
-
-        const enemy = new Enemy(this.path, enemyStats);
-        this.enemies.push(enemy);
-
-        if (enemy.isBoss) {
-            this.activeBoss = enemy;
-            this.spawnImpact(enemy.x, enemy.y, "#ef4444", 26);
-            this.spawnDamageNumber(enemy.x - 14, enemy.y - 22, "BOSS", "#fecaca");
-        }
+    spawnEnemy(role, overrides = {}) {
+        const definition = this.enemyTypes[role] ?? this.enemyTypes.grunt;
+        this.enemies.push(new Enemy(this.path, { ...definition, ...overrides }, this));
     }
 
     spawnDamageNumber(x, y, value, color = "#ffffff") {
@@ -162,67 +151,8 @@ export default class GameScene {
         this.impactEffects.push({ x, y, color, life: 0.18, maxLife: 0.18, radius: 4, maxRadius });
     }
 
-    spawnFireZone(x, y, options = {}) {
-        this.fireZones.push({
-            x,
-            y,
-            radius: options.radius ?? 36,
-            duration: options.duration ?? 3,
-            life: options.duration ?? 3,
-            tickInterval: options.tickInterval ?? 0.5,
-            tickTimer: options.tickInterval ?? 0.5,
-            damage: options.damage ?? 8,
-            color: options.color ?? "rgba(249, 115, 22, 0.30)"
-        });
-        this.spawnImpact(x, y, "#fb923c", (options.radius ?? 36) * 0.6);
-    }
-
-    spawnChainLightning(sourceEnemy, damage, jumpsLeft, range, visited = new Set()) {
-        if (!sourceEnemy || jumpsLeft <= 0) {
-            return;
-        }
-
-        const nextTarget = this.getNearbyEnemies(sourceEnemy.x, sourceEnemy.y, range, 1, visited)[0];
-        if (!nextTarget) {
-            return;
-        }
-
-        visited.add(nextTarget);
-
-        const dealt = Math.max(1, Math.round(damage));
-        const didDamage = nextTarget.takeDamage(dealt);
-        if (!didDamage) {
-            return;
-        }
-
-        this.chainEffects.push({
-            fromX: sourceEnemy.x,
-            fromY: sourceEnemy.y,
-            toX: nextTarget.x,
-            toY: nextTarget.y,
-            life: 0.12,
-            maxLife: 0.12,
-            color: "#93c5fd"
-        });
-
-        this.spawnDamageNumber(nextTarget.x - 10, nextTarget.y - 16, dealt, "#bfdbfe");
-        this.spawnImpact(nextTarget.x, nextTarget.y, "#93c5fd", 14);
-
-        this.spawnChainLightning(nextTarget, damage * 0.75, jumpsLeft - 1, range, visited);
-    }
-
-    getNearbyEnemies(x, y, range, limit = Infinity, exclude = new Set()) {
-        return this.enemies
-            .filter(enemy => !enemy.dead && !enemy.escaped && !exclude.has(enemy) && Math.hypot(enemy.x - x, enemy.y - y) <= range)
-            .sort((a, b) => b.i - a.i)
-            .slice(0, limit);
-    }
-
-    getPierceContinuationTarget(fromEnemy, hitEnemies) {
-        return this.enemies.find(enemy => {
-            if (enemy.dead || enemy.escaped || hitEnemies.has(enemy)) return false;
-            return Math.hypot(enemy.x - fromEnemy.x, enemy.y - fromEnemy.y) <= 70;
-        }) ?? null;
+    spawnFireZone(x, y, radius, duration, damage) {
+        this.fireZones.push({ x, y, radius, duration, maxDuration: duration, damage, tick: 0.5, interval: 0.5 });
     }
 
     tryUpgradeTower(pathId) {
@@ -414,20 +344,14 @@ export default class GameScene {
                 this.spawnTimer = this.spawnGap;
             }
 
-            for (const enemy of this.enemies) enemy.update(dt, this);
+            for (const enemy of this.enemies) enemy.update(dt);
             for (const tower of this.towers) tower.update(dt, this.enemies, this.projectiles, this);
-            for (const projectile of this.projectiles) projectile.update(dt, this);
-
-            for (const enemy of this.enemies) {
-                if (enemy.dead) this.gold += enemy.reward;
-                if (enemy.escaped) this.lives -= enemy.isBoss ? 5 : 1;
-            }
-
-            this.enemies = this.enemies.filter(enemy => !enemy.dead && !enemy.escaped);
-            this.projectiles = this.projectiles.filter(projectile => !projectile.dead);
-            this.activeBoss = this.enemies.find(enemy => enemy.isBoss) ?? null;
+            for (const projectile of this.projectiles) projectile.update(dt);
 
             this.updateFireZones(dt);
+            this.resolveEnemyOutcomes();
+
+            this.projectiles = this.projectiles.filter(projectile => !projectile.dead);
 
             if (this.lives <= 0) {
                 this.gameOver = true;
@@ -445,39 +369,60 @@ export default class GameScene {
 
         this.updateDamageNumbers(dt);
         this.updateImpactEffects(dt);
-        this.updateChainEffects(dt);
     }
 
     updateFireZones(dt) {
         for (const zone of this.fireZones) {
-            zone.life -= dt;
-            zone.tickTimer -= dt;
+            zone.duration -= dt;
+            zone.tick -= dt;
 
-            if (zone.tickTimer <= 0) {
+            if (zone.tick <= 0) {
                 for (const enemy of this.enemies) {
                     if (enemy.dead || enemy.escaped) continue;
-                    if (Math.hypot(enemy.x - zone.x, enemy.y - zone.y) > zone.radius) continue;
-
-                    const didDamage = enemy.takeDamage(zone.damage);
-                    if (!didDamage) continue;
-
-                    enemy.applyEffect({
-                        type: "burn",
-                        time: 1.5,
-                        damage: 4,
-                        interval: 0.5,
-                        tick: 0.5,
-                        source: "fire"
-                    });
-
-                    this.spawnDamageNumber(enemy.x - 8, enemy.y - 16, zone.damage, "#fdba74");
+                    if (Math.hypot(enemy.x - zone.x, enemy.y - zone.y) <= zone.radius) {
+                        enemy.takeDamage(zone.damage, {
+                            ignoreReduction: true,
+                            color: "#ff8c42",
+                            impactColor: "#ff8c42",
+                            maxImpactRadius: 12
+                        });
+                    }
                 }
-
-                zone.tickTimer = zone.tickInterval;
+                zone.tick = zone.interval;
             }
         }
 
-        this.fireZones = this.fireZones.filter(zone => zone.life > 0);
+        this.fireZones = this.fireZones.filter(zone => zone.duration > 0);
+    }
+
+    resolveEnemyOutcomes() {
+        const survivors = [];
+
+        for (const enemy of this.enemies) {
+            if (enemy.dead && !enemy.hasProcessedOutcome) {
+                enemy.hasProcessedOutcome = true;
+                this.gold += enemy.reward;
+                for (const spawn of enemy.getSplitSpawnData()) {
+                    this.spawnEnemy(spawn.role, {
+                        startX: spawn.x,
+                        startY: spawn.y,
+                        startPathIndex: spawn.pathIndex,
+                        ...spawn.inherited
+                    });
+                }
+                continue;
+            }
+
+            if (enemy.escaped && !enemy.hasProcessedOutcome) {
+                enemy.hasProcessedOutcome = true;
+                this.lives -= 1;
+                continue;
+            }
+
+            if (!enemy.dead && !enemy.escaped) survivors.push(enemy);
+        }
+
+        this.enemies = survivors;
     }
 
     updateDamageNumbers(dt) {
@@ -497,19 +442,11 @@ export default class GameScene {
         this.impactEffects = this.impactEffects.filter(effect => effect.life > 0);
     }
 
-    updateChainEffects(dt) {
-        for (const effect of this.chainEffects) {
-            effect.life -= dt;
-        }
-        this.chainEffects = this.chainEffects.filter(effect => effect.life > 0);
-    }
-
     render(ctx) {
         this.drawMap(ctx);
 
         for (const zone of this.fireZones) this.drawFireZone(ctx, zone);
         for (const impact of this.impactEffects) this.drawImpactEffect(ctx, impact);
-        for (const chain of this.chainEffects) this.drawChainEffect(ctx, chain);
         for (const tower of this.towers) tower.render(ctx);
         for (const projectile of this.projectiles) projectile.render(ctx);
         for (const enemy of this.enemies) enemy.render(ctx);
@@ -518,7 +455,6 @@ export default class GameScene {
         this.drawTopBar(ctx);
         this.drawSelectedTowerPanel(ctx);
         this.drawLevelInfo(ctx);
-        this.drawBossBar(ctx);
 
         if (this.gameOver) this.drawOverlay(ctx, "Defeat");
         if (this.victory) this.drawOverlay(ctx, "Victory");
@@ -558,10 +494,9 @@ export default class GameScene {
     }
 
     drawFireZone(ctx, zone) {
-        const alpha = Math.max(0.12, zone.life / zone.duration * 0.35);
         ctx.save();
-        ctx.fillStyle = zone.color;
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = Math.max(0.18, zone.duration / zone.maxDuration) * 0.55;
+        ctx.fillStyle = "#ff7a18";
         ctx.beginPath();
         ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -580,26 +515,13 @@ export default class GameScene {
         ctx.restore();
     }
 
-    drawChainEffect(ctx, effect) {
-        const alpha = effect.life / effect.maxLife;
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.strokeStyle = effect.color;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(effect.fromX, effect.fromY);
-        ctx.lineTo(effect.toX, effect.toY);
-        ctx.stroke();
-        ctx.restore();
-    }
-
     drawDamageNumber(ctx, number) {
         const alpha = number.life / number.maxLife;
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = number.color;
-        ctx.font = typeof number.value === "string" ? "bold 12px Arial" : "bold 16px Arial";
-        ctx.fillText(`${number.value}`, number.x, number.y);
+        ctx.font = "bold 16px Arial";
+        ctx.fillText(`-${number.value}`, number.x, number.y);
         ctx.restore();
     }
 
@@ -650,7 +572,7 @@ export default class GameScene {
         ctx.fillText("Rate: " + stats.rate, 695, 160);
 
         if (cost != null) ctx.fillText("Upgrade Cost: " + cost, 695, 182);
-        else ctx.fillText("Path: " + stats.path, 695, 182);
+        else ctx.fillText("Max Level Reached", 695, 182);
 
         for (let i = 0; i < choices.length; i++) {
             const button = this.upgradeButtons[i];
@@ -674,46 +596,7 @@ export default class GameScene {
         ctx.font = "14px Arial";
         ctx.fillText("Current Level: " + this.currentLevel.name, 10, 62);
         ctx.fillText("Build on glowing circles only", 10, 82);
-
-        if (this.currentLevel.data.boss && this.waveIndex === this.currentLevel.data.waves.length - 1 && !this.victory) {
-            ctx.fillStyle = "#fecaca";
-            ctx.fillText("Final wave includes " + this.currentLevel.data.boss.name, 10, 102);
-        }
-    }
-
-    drawBossBar(ctx) {
-        if (!this.activeBoss || this.activeBoss.dead || this.activeBoss.escaped) {
-            return;
-        }
-
-        const width = 360;
-        const height = 16;
-        const x = (this.canvas.width - width) / 2;
-        const y = 52;
-        const ratio = this.activeBoss.maxHp > 0 ? this.activeBoss.hp / this.activeBoss.maxHp : 0;
-
-        ctx.save();
-        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
-        ctx.fillRect(x - 10, y - 22, width + 20, 48);
-
-        ctx.fillStyle = "#fee2e2";
-        ctx.font = "bold 16px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText(this.activeBoss.name, this.canvas.width / 2, y - 6);
-
-        ctx.fillStyle = "rgba(255,255,255,0.18)";
-        ctx.fillRect(x, y, width, height);
-
-        ctx.fillStyle = ratio > 0.4 ? "#ef4444" : "#b91c1c";
-        ctx.fillRect(x, y, width * ratio, height);
-
-        ctx.strokeStyle = "#fee2e2";
-        ctx.strokeRect(x, y, width, height);
-
-        ctx.fillStyle = "white";
-        ctx.font = "12px Arial";
-        ctx.fillText(`${Math.ceil(this.activeBoss.hp)} / ${this.activeBoss.maxHp}`, this.canvas.width / 2, y + 12);
-        ctx.restore();
+        ctx.fillText("New foes: Splitter, Swarm, Bulwark", 10, 102);
     }
 
     drawOverlay(ctx, text) {
@@ -732,13 +615,10 @@ export default class GameScene {
     drawOverlayButton(ctx, button, label, hovered) {
         ctx.fillStyle = hovered ? "#3b82f6" : "#1f2937";
         ctx.fillRect(button.x, button.y, button.width, button.height);
-
         ctx.strokeStyle = "white";
-        ctx.lineWidth = 2;
         ctx.strokeRect(button.x, button.y, button.width, button.height);
-
         ctx.fillStyle = "white";
-        ctx.font = "18px Arial";
-        ctx.fillText(label, button.x + 18, button.y + 30);
+        ctx.font = "20px Arial";
+        ctx.fillText(label, button.x + 18, button.y + 31);
     }
 }
