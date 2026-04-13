@@ -19,32 +19,9 @@ export default class GameScene {
         ];
 
         this.enemyTypes = {
-            scout: { role: "scout", name: "Scout", hp: 55, speed: 90, reward: 8, radius: 8, color: "#ff7b72", typeBadge: "S" },
-            grunt: { role: "grunt", name: "Grunt", hp: 120, speed: 52, reward: 12, radius: 10, color: "#d29922", typeBadge: "G" },
-            tank: { role: "tank", name: "Tank", hp: 240, speed: 34, reward: 20, radius: 13, color: "#8b949e", typeBadge: "T" },
-            swarm: { role: "swarm", name: "Swarmling", hp: 30, speed: 138, reward: 4, radius: 6, color: "#ffb347", typeBadge: "W" },
-            splitter: {
-                role: "splitter",
-                name: "Splitter",
-                hp: 135,
-                speed: 60,
-                reward: 15,
-                radius: 11,
-                color: "#c678dd",
-                splitInto: ["swarm", "swarm"],
-                typeBadge: "P"
-            },
-            shield: {
-                role: "shield",
-                name: "Bulwark",
-                hp: 175,
-                speed: 45,
-                reward: 18,
-                radius: 12,
-                color: "#58a6ff",
-                damageReduction: 0.45,
-                typeBadge: "B"
-            }
+            scout: { name: "Scout", hp: 50, speed: 96, reward: 7, radius: 8, color: "#ff7b72" },
+            grunt: { name: "Grunt", hp: 125, speed: 56, reward: 13, radius: 10, color: "#d29922" },
+            tank: { name: "Tank", hp: 260, speed: 34, reward: 24, radius: 13, color: "#8b949e" }
         };
 
         this.towerCosts = {
@@ -57,9 +34,10 @@ export default class GameScene {
 
         this.buttons = ["archer", "bomb", "berserker", "rogue", "mage"];
         this.upgradeButtons = [
-            { x: 700, y: 70, width: 220, height: 34, id: "left" },
-            { x: 700, y: 112, width: 220, height: 34, id: "right" }
+            { x: 700, y: 92, width: 220, height: 34, id: "left" },
+            { x: 700, y: 134, width: 220, height: 34, id: "right" }
         ];
+        this.sellButton = { x: 700, y: 214, width: 220, height: 36 };
 
         this.overlayButtons = {
             restart: { x: 320, y: 290, width: 140, height: 48 },
@@ -71,10 +49,10 @@ export default class GameScene {
         this.selectedTower = null;
         this.hoveredId = null;
         this.currentLevelIndex = 0;
+        this.pendingWaveBonus = 0;
 
         this.damageNumbers = [];
         this.impactEffects = [];
-        this.fireZones = [];
         this.occupiedBuildTiles = new Set();
 
         this.handleClick = this.handleClick.bind(this);
@@ -105,10 +83,9 @@ export default class GameScene {
         this.projectiles = [];
         this.damageNumbers = [];
         this.impactEffects = [];
-        this.fireZones = [];
         this.occupiedBuildTiles = new Set();
 
-        this.gold = 250;
+        this.gold = 260;
         this.lives = 20;
         this.selectedTower = null;
 
@@ -135,12 +112,12 @@ export default class GameScene {
         }
 
         this.pendingWave = [...this.currentLevel.data.waves[this.waveIndex]];
+        this.pendingWaveBonus = 15 + this.waveIndex * 6;
         this.spawnTimer = 0;
     }
 
-    spawnEnemy(role, overrides = {}) {
-        const definition = this.enemyTypes[role] ?? this.enemyTypes.grunt;
-        this.enemies.push(new Enemy(this.path, { ...definition, ...overrides }, this));
+    spawnEnemy(role) {
+        this.enemies.push(new Enemy(this.path, this.enemyTypes[role]));
     }
 
     spawnDamageNumber(x, y, value, color = "#ffffff") {
@@ -149,10 +126,6 @@ export default class GameScene {
 
     spawnImpact(x, y, color = "#ffffff", maxRadius = 12) {
         this.impactEffects.push({ x, y, color, life: 0.18, maxLife: 0.18, radius: 4, maxRadius });
-    }
-
-    spawnFireZone(x, y, radius, duration, damage) {
-        this.fireZones.push({ x, y, radius, duration, maxDuration: duration, damage, tick: 0.5, interval: 0.5 });
     }
 
     tryUpgradeTower(pathId) {
@@ -166,6 +139,23 @@ export default class GameScene {
             this.gold -= cost;
             this.soundManager.playClick();
         }
+    }
+
+    sellSelectedTower() {
+        if (!this.selectedTower) return;
+
+        const tower = this.selectedTower;
+        const sellValue = tower.getSellValue();
+        this.gold += sellValue;
+
+        if (tower.buildTileIndex != null) {
+            this.occupiedBuildTiles.delete(tower.buildTileIndex);
+        }
+
+        this.towers = this.towers.filter((item) => item !== tower);
+        this.spawnDamageNumber(tower.x - 14, tower.y - 18, `+${sellValue}`, "#7ef0c2");
+        this.selectedTower = null;
+        this.soundManager.playClick();
     }
 
     getTopBarTowerIndex(x, y) {
@@ -202,6 +192,10 @@ export default class GameScene {
             if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
                 return `upgrade-${choices[i].id}`;
             }
+        }
+
+        if (x >= this.sellButton.x && x <= this.sellButton.x + this.sellButton.width && y >= this.sellButton.y && y <= this.sellButton.y + this.sellButton.height) {
+            return "sell-tower";
         }
 
         return null;
@@ -261,6 +255,11 @@ export default class GameScene {
                     return;
                 }
             }
+
+            if (x >= this.sellButton.x && x <= this.sellButton.x + this.sellButton.width && y >= this.sellButton.y && y <= this.sellButton.y + this.sellButton.height) {
+                this.sellSelectedTower();
+                return;
+            }
         }
 
         for (const tower of this.towers) {
@@ -272,7 +271,10 @@ export default class GameScene {
         }
 
         const buildSpot = this.getBuildTileAt(x, y);
-        if (!buildSpot) return;
+        if (!buildSpot) {
+            this.selectedTower = null;
+            return;
+        }
         if (!this.canPlaceTowerOnTile(buildSpot.index)) return;
 
         const cost = this.towerCosts[this.selectedType];
@@ -348,10 +350,15 @@ export default class GameScene {
             for (const tower of this.towers) tower.update(dt, this.enemies, this.projectiles, this);
             for (const projectile of this.projectiles) projectile.update(dt);
 
-            this.updateFireZones(dt);
-            this.resolveEnemyOutcomes();
+            for (const enemy of this.enemies) {
+                if (enemy.dead) this.gold += enemy.reward;
+                if (enemy.escaped) this.lives -= 1;
+            }
 
-            this.projectiles = this.projectiles.filter(projectile => !projectile.dead);
+            const waveCleared = this.pendingWave.length === 0 && this.enemies.length === 0;
+
+            this.enemies = this.enemies.filter((enemy) => !enemy.dead && !enemy.escaped);
+            this.projectiles = this.projectiles.filter((projectile) => !projectile.dead);
 
             if (this.lives <= 0) {
                 this.gameOver = true;
@@ -361,8 +368,14 @@ export default class GameScene {
                 }
             }
 
-            if (this.pendingWave.length === 0 && this.enemies.length === 0 && !this.gameOver && !this.victory) {
-                this.waveIndex++;
+            if (waveCleared && !this.gameOver && !this.victory) {
+                if (this.pendingWaveBonus > 0) {
+                    this.gold += this.pendingWaveBonus;
+                    this.spawnDamageNumber(24, 112, `+${this.pendingWaveBonus}`, "#f7dc6f");
+                    this.pendingWaveBonus = 0;
+                }
+
+                this.waveIndex += 1;
                 this.startWave();
             }
         }
@@ -371,66 +384,12 @@ export default class GameScene {
         this.updateImpactEffects(dt);
     }
 
-    updateFireZones(dt) {
-        for (const zone of this.fireZones) {
-            zone.duration -= dt;
-            zone.tick -= dt;
-
-            if (zone.tick <= 0) {
-                for (const enemy of this.enemies) {
-                    if (enemy.dead || enemy.escaped) continue;
-                    if (Math.hypot(enemy.x - zone.x, enemy.y - zone.y) <= zone.radius) {
-                        enemy.takeDamage(zone.damage, {
-                            ignoreReduction: true,
-                            color: "#ff8c42",
-                            impactColor: "#ff8c42",
-                            maxImpactRadius: 12
-                        });
-                    }
-                }
-                zone.tick = zone.interval;
-            }
-        }
-
-        this.fireZones = this.fireZones.filter(zone => zone.duration > 0);
-    }
-
-    resolveEnemyOutcomes() {
-        const survivors = [];
-
-        for (const enemy of this.enemies) {
-            if (enemy.dead && !enemy.hasProcessedOutcome) {
-                enemy.hasProcessedOutcome = true;
-                this.gold += enemy.reward;
-                for (const spawn of enemy.getSplitSpawnData()) {
-                    this.spawnEnemy(spawn.role, {
-                        startX: spawn.x,
-                        startY: spawn.y,
-                        startPathIndex: spawn.pathIndex,
-                        ...spawn.inherited
-                    });
-                }
-                continue;
-            }
-
-            if (enemy.escaped && !enemy.hasProcessedOutcome) {
-                enemy.hasProcessedOutcome = true;
-                this.lives -= 1;
-                continue;
-            }
-
-            if (!enemy.dead && !enemy.escaped) survivors.push(enemy);
-        }
-
-        this.enemies = survivors;
-    }
-
     updateDamageNumbers(dt) {
         for (const number of this.damageNumbers) {
             number.life -= dt;
             number.y += number.vy * dt;
         }
-        this.damageNumbers = this.damageNumbers.filter(number => number.life > 0);
+        this.damageNumbers = this.damageNumbers.filter((number) => number.life > 0);
     }
 
     updateImpactEffects(dt) {
@@ -439,13 +398,12 @@ export default class GameScene {
             const progress = 1 - effect.life / effect.maxLife;
             effect.radius = 4 + (effect.maxRadius - 4) * progress;
         }
-        this.impactEffects = this.impactEffects.filter(effect => effect.life > 0);
+        this.impactEffects = this.impactEffects.filter((effect) => effect.life > 0);
     }
 
     render(ctx) {
         this.drawMap(ctx);
 
-        for (const zone of this.fireZones) this.drawFireZone(ctx, zone);
         for (const impact of this.impactEffects) this.drawImpactEffect(ctx, impact);
         for (const tower of this.towers) tower.render(ctx);
         for (const projectile of this.projectiles) projectile.render(ctx);
@@ -493,16 +451,6 @@ export default class GameScene {
         ctx.stroke();
     }
 
-    drawFireZone(ctx, zone) {
-        ctx.save();
-        ctx.globalAlpha = Math.max(0.18, zone.duration / zone.maxDuration) * 0.55;
-        ctx.fillStyle = "#ff7a18";
-        ctx.beginPath();
-        ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-    }
-
     drawImpactEffect(ctx, effect) {
         const alpha = effect.life / effect.maxLife;
         ctx.save();
@@ -521,7 +469,7 @@ export default class GameScene {
         ctx.globalAlpha = alpha;
         ctx.fillStyle = number.color;
         ctx.font = "bold 16px Arial";
-        ctx.fillText(`-${number.value}`, number.x, number.y);
+        ctx.fillText(`${number.value}`, number.x, number.y);
         ctx.restore();
     }
 
@@ -557,11 +505,11 @@ export default class GameScene {
         const choices = this.selectedTower.getUpgradeChoices();
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.82)";
-        ctx.fillRect(680, 50, 260, 170);
+        ctx.fillRect(680, 50, 260, 210);
 
         ctx.strokeStyle = "white";
         ctx.lineWidth = 1;
-        ctx.strokeRect(680, 50, 260, 170);
+        ctx.strokeRect(680, 50, 260, 210);
 
         ctx.fillStyle = "white";
         ctx.font = "16px Arial";
@@ -570,9 +518,11 @@ export default class GameScene {
         ctx.fillText("Damage: " + stats.damage, 695, 116);
         ctx.fillText("Range: " + stats.range, 695, 138);
         ctx.fillText("Rate: " + stats.rate, 695, 160);
+        ctx.fillText("Invested: " + stats.invested, 695, 182);
+        ctx.fillText("Sell Value: " + stats.sellValue, 695, 204);
 
-        if (cost != null) ctx.fillText("Upgrade Cost: " + cost, 695, 182);
-        else ctx.fillText("Max Level Reached", 695, 182);
+        if (cost != null) ctx.fillText("Upgrade Cost: " + cost, 695, 226);
+        else ctx.fillText("Max Level Reached", 695, 226);
 
         for (let i = 0; i < choices.length; i++) {
             const button = this.upgradeButtons[i];
@@ -589,6 +539,15 @@ export default class GameScene {
             ctx.font = "14px Arial";
             ctx.fillText(choices[i].label, button.x + 10, button.y + 22);
         }
+
+        const sellHovered = this.hoveredId === "sell-tower";
+        ctx.fillStyle = sellHovered ? "#a84b4b" : "#8a3333";
+        ctx.fillRect(this.sellButton.x, this.sellButton.y, this.sellButton.width, this.sellButton.height);
+        ctx.strokeStyle = "white";
+        ctx.strokeRect(this.sellButton.x, this.sellButton.y, this.sellButton.width, this.sellButton.height);
+        ctx.fillStyle = "white";
+        ctx.font = "14px Arial";
+        ctx.fillText(`Sell Tower (+${stats.sellValue})`, this.sellButton.x + 10, this.sellButton.y + 23);
     }
 
     drawLevelInfo(ctx) {
@@ -596,7 +555,7 @@ export default class GameScene {
         ctx.font = "14px Arial";
         ctx.fillText("Current Level: " + this.currentLevel.name, 10, 62);
         ctx.fillText("Build on glowing circles only", 10, 82);
-        ctx.fillText("New foes: Splitter, Swarm, Bulwark", 10, 102);
+        ctx.fillText("Clear waves for bonus gold", 10, 102);
     }
 
     drawOverlay(ctx, text) {
@@ -613,12 +572,14 @@ export default class GameScene {
     }
 
     drawOverlayButton(ctx, button, label, hovered) {
-        ctx.fillStyle = hovered ? "#3b82f6" : "#1f2937";
+        ctx.fillStyle = hovered ? "#3f8a5f" : "#2c6e49";
         ctx.fillRect(button.x, button.y, button.width, button.height);
+
         ctx.strokeStyle = "white";
         ctx.strokeRect(button.x, button.y, button.width, button.height);
+
         ctx.fillStyle = "white";
         ctx.font = "20px Arial";
-        ctx.fillText(label, button.x + 18, button.y + 31);
+        ctx.fillText(label, button.x + 22, button.y + 30);
     }
 }

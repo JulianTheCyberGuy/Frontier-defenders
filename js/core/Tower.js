@@ -1,57 +1,224 @@
 import Projectile from "./Projectile.js";
 
-const TOWER_DATA = {
+const TOWER_CONFIG = {
     archer: {
         name: "Archer",
-        color: "#4caf50",
-        base: { damage: 18, range: 170, rate: 1.15 },
-        upgrades: {
-            left: { id: "left", label: "Multi-Shot", damage: 24, range: 185, rate: 1.25, abilities: { multishot: 3 } },
-            right: { id: "right", label: "Piercing Arrows", damage: 28, range: 190, rate: 1.05, abilities: { pierce: 2, slowArrow: true } }
-        },
-        costs: [70, 115]
+        color: "#7fb3ff",
+        cost: 50,
+        range: 155,
+        damage: 18,
+        rate: 1.1,
+        projectileColor: "#f0d070",
+        choices: [
+            {
+                id: "focus",
+                label: "Focus Shot",
+                apply: (tower) => {
+                    tower.damage += 10;
+                    tower.range += 10;
+                }
+            },
+            {
+                id: "swift",
+                label: "Swift Hands",
+                apply: (tower) => {
+                    tower.rate += 0.45;
+                    tower.range += 5;
+                }
+            },
+            {
+                id: "sniper",
+                label: "Sniper Bow",
+                apply: (tower) => {
+                    tower.damage += 16;
+                    tower.range += 24;
+                }
+            },
+            {
+                id: "volley",
+                label: "Volley Training",
+                apply: (tower) => {
+                    tower.rate += 0.7;
+                    tower.damage += 4;
+                }
+            }
+        ]
     },
     bomb: {
         name: "Bombardier",
-        color: "#b5651d",
-        base: { damage: 34, range: 135, rate: 0.65, splash: 52 },
-        upgrades: {
-            left: { id: "left", label: "Stun Shell", damage: 42, range: 145, rate: 0.7, splash: 60, abilities: { stunBlast: true } },
-            right: { id: "right", label: "Fire Zone", damage: 38, range: 150, rate: 0.72, splash: 55, abilities: { fireZone: true } }
-        },
-        costs: [80, 125]
+        color: "#ff9a62",
+        cost: 70,
+        range: 125,
+        damage: 28,
+        rate: 0.62,
+        splash: 42,
+        projectileColor: "#ffb86b",
+        choices: [
+            {
+                id: "powder",
+                label: "Powder Mix",
+                apply: (tower) => {
+                    tower.damage += 14;
+                    tower.splash += 8;
+                }
+            },
+            {
+                id: "satchel",
+                label: "Quick Satchel",
+                apply: (tower) => {
+                    tower.rate += 0.25;
+                    tower.range += 12;
+                }
+            },
+            {
+                id: "blast",
+                label: "Blast Core",
+                apply: (tower) => {
+                    tower.damage += 18;
+                    tower.splash += 12;
+                }
+            },
+            {
+                id: "ember",
+                label: "Ember Charge",
+                apply: (tower) => {
+                    tower.rate += 0.25;
+                    tower.burnOnHit = true;
+                }
+            }
+        ]
     },
     berserker: {
         name: "Berserker",
-        color: "#8e44ad",
-        base: { damage: 28, range: 72, rate: 1.25 },
-        upgrades: {
-            left: { id: "left", label: "Cleave", damage: 36, range: 78, rate: 1.35, abilities: { cleave: true } },
-            right: { id: "right", label: "Rage", damage: 32, range: 76, rate: 1.55, abilities: { rage: true } }
-        },
-        costs: [75, 120]
+        color: "#d96cff",
+        cost: 65,
+        range: 64,
+        damage: 24,
+        rate: 1.35,
+        choices: [
+            {
+                id: "axe",
+                label: "Heavy Axe",
+                apply: (tower) => {
+                    tower.damage += 14;
+                    tower.range += 4;
+                }
+            },
+            {
+                id: "frenzy",
+                label: "Frenzy",
+                apply: (tower) => {
+                    tower.rate += 0.45;
+                    tower.damage += 4;
+                }
+            },
+            {
+                id: "cleaver",
+                label: "Cleaver",
+                apply: (tower) => {
+                    tower.damage += 18;
+                    tower.cleaveCount = 2;
+                }
+            },
+            {
+                id: "warcry",
+                label: "Warcry",
+                apply: (tower) => {
+                    tower.rate += 0.5;
+                    tower.range += 8;
+                }
+            }
+        ]
     },
     rogue: {
         name: "Rogue",
-        color: "#34495e",
-        base: { damage: 16, range: 84, rate: 2.2 },
-        upgrades: {
-            left: { id: "left", label: "Critical Edge", damage: 22, range: 88, rate: 2.35, abilities: { crit: 0.3 } },
-            right: { id: "right", label: "Backstab", damage: 24, range: 90, rate: 2.1, abilities: { backstab: true } }
-        },
-        costs: [65, 105]
+        color: "#7ef0c2",
+        cost: 60,
+        range: 86,
+        damage: 16,
+        rate: 2,
+        choices: [
+            {
+                id: "daggers",
+                label: "Twin Daggers",
+                apply: (tower) => {
+                    tower.rate += 0.55;
+                    tower.damage += 3;
+                }
+            },
+            {
+                id: "venom",
+                label: "Venom",
+                apply: (tower) => {
+                    tower.damage += 8;
+                    tower.poisonOnHit = true;
+                }
+            },
+            {
+                id: "assassin",
+                label: "Assassin",
+                apply: (tower) => {
+                    tower.damage += 12;
+                    tower.critChance = 0.25;
+                }
+            },
+            {
+                id: "shadow",
+                label: "Shadowstep",
+                apply: (tower) => {
+                    tower.rate += 0.75;
+                    tower.range += 10;
+                }
+            }
+        ]
     },
     mage: {
         name: "Mage",
-        color: "#3498db",
-        base: { damage: 22, range: 155, rate: 0.95 },
-        upgrades: {
-            left: { id: "left", label: "Chain Lightning", damage: 28, range: 165, rate: 1.0, abilities: { chain: 2 } },
-            right: { id: "right", label: "Freeze Bolt", damage: 24, range: 170, rate: 1.05, abilities: { freeze: true } }
-        },
-        costs: [85, 130]
+        color: "#8fe3ff",
+        cost: 80,
+        range: 135,
+        damage: 22,
+        rate: 0.82,
+        splash: 28,
+        projectileColor: "#98f5ff",
+        choices: [
+            {
+                id: "ember",
+                label: "Ember Tome",
+                apply: (tower) => {
+                    tower.damage += 8;
+                    tower.burnOnHit = true;
+                }
+            },
+            {
+                id: "frost",
+                label: "Frost Rune",
+                apply: (tower) => {
+                    tower.rate += 0.2;
+                    tower.slowStrength = 0.58;
+                }
+            },
+            {
+                id: "meteor",
+                label: "Meteor Study",
+                apply: (tower) => {
+                    tower.damage += 16;
+                    tower.splash += 14;
+                }
+            },
+            {
+                id: "surge",
+                label: "Arc Surge",
+                apply: (tower) => {
+                    tower.rate += 0.35;
+                    tower.range += 18;
+                }
+            }
+        ]
     }
 };
+
+const UPGRADE_MULTIPLIERS = [1.2, 1.65];
 
 export default class Tower {
     constructor(x, y, type) {
@@ -60,209 +227,169 @@ export default class Tower {
         this.type = type;
         this.cool = 0;
         this.level = 1;
-        this.pathChoice = null;
-        this.abilities = {};
-        this.syncStats();
+        this.branchHistory = [];
+        this.investedGold = 0;
+        this.buildTileIndex = null;
+
+        this.range = 140;
+        this.damage = 20;
+        this.rate = 1;
+        this.splash = 0;
+        this.projectileColor = "#f0d070";
+        this.burnOnHit = false;
+        this.poisonOnHit = false;
+        this.slowStrength = null;
+        this.critChance = 0;
+        this.cleaveCount = 0;
+
+        this.applyBaseStats();
     }
 
-    getDefinition() {
-        return TOWER_DATA[this.type];
-    }
+    applyBaseStats() {
+        const config = TOWER_CONFIG[this.type];
+        this.name = config.name;
+        this.color = config.color;
+        this.baseCost = config.cost;
+        this.range = config.range;
+        this.damage = config.damage;
+        this.rate = config.rate;
+        this.splash = config.splash ?? 0;
+        this.projectileColor = config.projectileColor ?? "#f0d070";
+        this.investedGold = config.cost;
 
-    syncStats() {
-        const definition = this.getDefinition();
-        const source = this.level === 1 ? definition.base : definition.upgrades[this.pathChoice] ?? definition.base;
-
-        this.name = definition.name;
-        this.damage = source.damage;
-        this.range = source.range;
-        this.rate = source.rate;
-        this.splash = source.splash ?? 0;
-        this.color = definition.color;
-        this.abilities = { ...(source.abilities ?? {}) };
-    }
-
-    getUpgradeChoices() {
-        if (this.level >= 2) return [];
-        const definition = this.getDefinition();
-        return [definition.upgrades.left, definition.upgrades.right];
-    }
-
-    getUpgradeCost() {
-        const definition = this.getDefinition();
-        return this.level >= 2 ? null : definition.costs[0];
-    }
-
-    upgrade(pathId) {
-        if (this.level >= 2) return false;
-        if (!this.getDefinition().upgrades[pathId]) return false;
-
-        this.level = 2;
-        this.pathChoice = pathId;
-        this.syncStats();
-        return true;
-    }
-
-    getDisplayStats() {
-        return {
-            name: this.name,
-            level: this.level,
-            damage: this.damage,
-            range: this.range,
-            rate: this.rate.toFixed(2)
-        };
-    }
-
-    getEnemiesInRange(enemies) {
-        return enemies.filter(enemy => !enemy.dead && !enemy.escaped && Math.hypot(enemy.x - this.x, enemy.y - this.y) <= this.range);
-    }
-
-    getClosestEnemy(enemies) {
-        let bestEnemy = null;
-        let bestDistance = Infinity;
-
-        for (const enemy of this.getEnemiesInRange(enemies)) {
-            const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-            if (dist < bestDistance) {
-                bestDistance = dist;
-                bestEnemy = enemy;
-            }
-        }
-
-        return bestEnemy;
+        if (this.type === "archer") this.slowStrength = 0.72;
+        if (this.type === "mage") this.burnOnHit = true;
     }
 
     update(dt, enemies, projectiles, scene) {
         this.cool -= dt;
         if (this.cool > 0) return;
 
-        const targets = this.getEnemiesInRange(enemies);
+        const targets = enemies.filter((enemy) => !enemy.dead && !enemy.escaped && Math.hypot(enemy.x - this.x, enemy.y - this.y) <= this.range);
         if (targets.length === 0) return;
+
+        const target = targets[0];
 
         if (this.type === "berserker" || this.type === "rogue") {
             this.performMeleeAttack(targets, scene);
-        } else if (this.type === "bomb") {
-            this.fireBomb(targets[0], scene);
-        } else if (this.type === "mage") {
-            this.fireMageAttack(targets[0], projectiles, scene);
         } else {
-            this.fireArcherAttack(targets, projectiles, scene);
+            projectiles.push(
+                new Projectile(this.x, this.y, target, this.damage, {
+                    color: this.projectileColor,
+                    splash: this.splash,
+                    scene,
+                    onHit: (enemy) => this.applyOnHitEffects(enemy, scene)
+                })
+            );
         }
 
-        const hasteBonus = this.abilities.rage ? 0.18 : 0;
-        this.cool = 1 / (this.rate + hasteBonus);
+        this.cool = 1 / this.rate;
     }
 
     performMeleeAttack(targets, scene) {
-        const primary = targets[0];
-        let damage = this.damage;
+        const strikeTargets = [targets[0], ...targets.slice(1, 1 + this.cleaveCount)];
 
-        if (this.abilities.crit && Math.random() < this.abilities.crit) {
-            damage = Math.round(damage * 1.85);
-            scene.spawnImpact(primary.x, primary.y, "#f5e663", 18);
-        }
+        for (const enemy of strikeTargets) {
+            let damage = this.damage;
+            let color = this.type === "rogue" ? "#7ef0c2" : "#d96cff";
 
-        if (this.abilities.backstab && primary.i < primary.path.length - 1) {
-            damage += 10;
-        }
-
-        primary.takeDamage(damage, { color: "#ffdddd", impactColor: "#ff8888", maxImpactRadius: 16 });
-
-        if (this.abilities.cleave) {
-            for (const enemy of targets.slice(1, 3)) {
-                enemy.takeDamage(Math.round(this.damage * 0.7), {
-                    color: "#ffd1f7",
-                    impactColor: "#d291ff",
-                    maxImpactRadius: 14
-                });
+            if (this.type === "rogue" && this.critChance > 0 && Math.random() < this.critChance) {
+                damage = Math.round(damage * 1.8);
+                color = "#ffef7a";
             }
+
+            const hit = enemy.takeDamage(damage);
+            if (!hit) continue;
+
+            if (scene) {
+                scene.spawnDamageNumber(enemy.x - 10, enemy.y - 12, damage, color);
+                scene.spawnImpact(enemy.x, enemy.y, color, 12);
+            }
+
+            this.applyOnHitEffects(enemy, scene);
         }
     }
 
-    fireArcherAttack(targets, projectiles, scene) {
-        const arrows = this.abilities.multishot ? targets.slice(0, this.abilities.multishot) : [targets[0]];
+    applyOnHitEffects(enemy, scene) {
+        if (this.slowStrength) {
+            enemy.applyEffect({ type: "slow", time: 1.8, value: this.slowStrength });
+        }
 
-        for (const target of arrows) {
-            projectiles.push(new Projectile(this.x, this.y, target, this.damage, {
-                scene,
-                color: "#d6f36a",
-                pierce: this.abilities.pierce ?? 0,
-                onHit: enemy => {
-                    enemy.applyEffect({ type: "slow", time: 1.6, value: 0.75 });
-                }
-            }));
+        if (this.burnOnHit) {
+            enemy.applyEffect({ type: "burn", time: 3, damage: 3, interval: 0.5, tick: 0.5 });
+        }
+
+        if (this.poisonOnHit) {
+            enemy.applyEffect({ type: "burn", time: 2.4, damage: 2, interval: 0.4, tick: 0.4 });
+        }
+
+        if (scene && (this.burnOnHit || this.slowStrength)) {
+            scene.spawnImpact(enemy.x, enemy.y, this.burnOnHit ? "#ff944d" : "#87ceeb", 14);
         }
     }
 
-    fireBomb(target, scene) {
-        const affected = scene.enemies.filter(enemy => {
-            if (enemy.dead || enemy.escaped) return false;
-            return Math.hypot(enemy.x - target.x, enemy.y - target.y) <= this.splash;
-        });
-
-        for (const enemy of affected) {
-            enemy.takeDamage(this.damage, { color: "#ffb347", impactColor: "#ff914d", maxImpactRadius: 20 });
-            if (this.abilities.stunBlast) enemy.applyEffect({ type: "stun", time: 0.6 });
-            if (this.abilities.fireZone) enemy.applyEffect({ type: "burn", time: 2.5, damage: 3, interval: 0.5, tick: 0.5 });
-        }
-
-        if (this.abilities.fireZone) {
-            scene.spawnFireZone(target.x, target.y, 44, 3.2, 4);
-        }
-
-        scene.spawnImpact(target.x, target.y, "#ff914d", 26);
+    getUpgradeCost() {
+        if (this.level >= 3) return null;
+        return Math.round(this.baseCost * UPGRADE_MULTIPLIERS[this.level - 1]);
     }
 
-    fireMageAttack(target, projectiles, scene) {
-        if (this.abilities.chain) {
-            const jumped = [];
-            const available = scene.enemies.filter(enemy => !enemy.dead && !enemy.escaped);
-            let current = target;
+    getUpgradeChoices() {
+        if (this.level >= 3) return [];
 
-            for (let jump = 0; jump <= this.abilities.chain && current; jump++) {
-                current.takeDamage(this.damage - jump * 4, {
-                    color: "#9fe8ff",
-                    impactColor: "#9fe8ff",
-                    maxImpactRadius: 18
-                });
-                current.applyEffect(this.abilities.freeze
-                    ? { type: "freeze", time: 1.4, value: 0.45 }
-                    : { type: "burn", time: 2.5, damage: 2, interval: 0.5, tick: 0.5 });
-                jumped.push(current);
-                scene.spawnImpact(current.x, current.y, "#9fe8ff", 20);
+        const config = TOWER_CONFIG[this.type];
+        const offset = (this.level - 1) * 2;
+        return config.choices.slice(offset, offset + 2).map((choice) => ({ id: choice.id, label: choice.label }));
+    }
 
-                current = available
-                    .filter(enemy => !jumped.includes(enemy))
-                    .sort((a, b) => Math.hypot(a.x - jumped[jumped.length - 1].x, a.y - jumped[jumped.length - 1].y) - Math.hypot(b.x - jumped[jumped.length - 1].x, b.y - jumped[jumped.length - 1].y))[0];
+    upgrade(pathId) {
+        if (this.level >= 3) return false;
 
-                if (current && Math.hypot(current.x - jumped[jumped.length - 1].x, current.y - jumped[jumped.length - 1].y) > 150) {
-                    current = null;
-                }
-            }
-            return;
-        }
+        const config = TOWER_CONFIG[this.type];
+        const choice = config.choices.find((item) => item.id === pathId);
+        if (!choice) return false;
 
-        projectiles.push(new Projectile(this.x, this.y, target, this.damage, {
-            scene,
-            color: this.abilities.freeze ? "#9fe8ff" : "#ff8c42",
-            onHit: enemy => {
-                enemy.applyEffect(this.abilities.freeze
-                    ? { type: "freeze", time: 1.5, value: 0.4 }
-                    : { type: "burn", time: 3, damage: 2, interval: 0.5, tick: 0.5 });
-            }
-        }));
+        const validIds = this.getUpgradeChoices().map((item) => item.id);
+        if (!validIds.includes(pathId)) return false;
+
+        const cost = this.getUpgradeCost();
+        choice.apply(this);
+        this.investedGold += cost;
+        this.branchHistory.push(pathId);
+        this.level += 1;
+        return true;
+    }
+
+    getSellValue() {
+        return Math.max(1, Math.floor(this.investedGold * 0.7));
+    }
+
+    getDisplayStats() {
+        return {
+            name: this.name,
+            level: this.level,
+            damage: Math.round(this.damage),
+            range: Math.round(this.range),
+            rate: this.rate.toFixed(2),
+            invested: this.investedGold,
+            sellValue: this.getSellValue()
+        };
     }
 
     render(ctx) {
         ctx.save();
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, 11, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.font = "bold 10px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText(this.name[0], this.x, this.y + 3);
+
+        ctx.strokeStyle = "rgba(255,255,255,0.8)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
     }
 
