@@ -35,42 +35,37 @@ export default class DomUI {
         this.root.innerHTML = `
             <div class="dom-screen main-menu-screen">
                 <section class="dom-panel hero-panel">
-                    <div>
+                    <div class="hero-copy-block">
                         <p class="hero-kicker">Dark fantasy tower defense</p>
                         <h1 class="hero-title">Frontier<br>Defenders</h1>
-                        <p class="hero-copy">Hold ancient roads, layer your defenses, and survive each wave with cleaner tactical control.</p>
-                    </div>
-                    <div>
+                        <p class="hero-copy">Hold ancient roads, layer your defenses, and survive each wave with tighter tactical control.</p>
                         <div class="hero-actions">
                             <button class="dom-button is-primary" data-action="play">Play</button>
                             <button class="dom-button" data-action="levels">Level Select</button>
                             <button class="dom-button is-ghost" data-action="settings">Settings</button>
                         </div>
                         <div class="hero-pills">
-                            <span class="dom-pill is-accent">HTML menu UI</span>
+                            <span class="dom-pill is-accent">Responsive fit</span>
                             <span class="dom-pill">Sharper text</span>
-                            <span class="dom-pill">Responsive layout</span>
+                            <span class="dom-pill">Clean menu flow</span>
                         </div>
                     </div>
                 </section>
-                <div class="side-stack">
+                <aside class="side-stack">
                     <section class="dom-panel info-card">
-                        <h2>Why this feels cleaner</h2>
-                        <ul class="info-list">
-                            <li>Text now renders in HTML instead of canvas, so it stays crisp.</li>
-                            <li>Buttons, spacing, and panel sizing scale better on different screens.</li>
-                            <li>The battlefield can stay the focus while menus carry the heavier UI work.</li>
-                        </ul>
+                        <h2>Presentation Pass</h2>
+                        <p>Main menu includes Play, Level Select, and Settings with a cleaner dark fantasy tone.</p>
+                        <p>The battlefield stays on canvas while the outer interface remains crisp in HTML and CSS.</p>
                     </section>
                     <section class="dom-panel info-card">
-                        <h3>Current build</h3>
+                        <h3>Current Build</h3>
                         <ul class="info-list">
                             <li>Five tower classes with upgrades and combat roles.</li>
                             <li>Three battlefields with custom paths and wave sets.</li>
-                            <li>Custom engine flow with canvas gameplay intact.</li>
+                            <li>Custom engine flow with gameplay intact.</li>
                         </ul>
                     </section>
-                </div>
+                </aside>
             </div>
         `;
 
@@ -83,7 +78,10 @@ export default class DomUI {
         });
 
         if (this.settingsOpen) {
-            this.renderSettingsModal({ soundManager, onClose: () => this.closeSettings(() => this.showMainMenu({ onPlay, onLevelSelect, onOpenSettings, soundManager })) });
+            this.renderSettingsModal({
+                soundManager,
+                onClose: () => this.closeSettings(() => this.showMainMenu({ onPlay, onLevelSelect, onOpenSettings, soundManager }))
+            });
         }
     }
 
@@ -100,18 +98,18 @@ export default class DomUI {
             return `
                 <article class="dom-panel level-card ${level.locked ? "is-locked" : ""}">
                     <div class="level-card-top">
-                        <div class="level-badge" style="color:${level.accent}; background:${level.accent};"></div>
-                        <div>
+                        <div class="level-badge" style="background:${level.accent};"></div>
+                        <div class="level-headings">
                             <h3>${level.label}</h3>
                             <p>${level.subtitle}</p>
                         </div>
-                        <div class="level-meta">
-                            <span class="dom-pill">Level ${level.id + 1}</span>
-                            ${meta}
-                        </div>
-                        <p>${level.terrain}</p>
-                        <p>${level.waves}</p>
                     </div>
+                    <div class="level-meta">
+                        <span class="dom-pill">Level ${level.id + 1}</span>
+                        ${meta}
+                    </div>
+                    <p class="level-copy">${level.terrain}</p>
+                    <p class="level-copy">${level.waves}</p>
                     <div class="level-card-actions">
                         <button class="dom-button ${level.locked ? "" : "is-primary"}" data-level-id="${level.id}" ${level.locked ? "disabled" : ""}>${level.locked ? "Locked" : "Deploy Here"}</button>
                     </div>
@@ -124,8 +122,9 @@ export default class DomUI {
             <div class="dom-screen level-select-screen">
                 <section class="dom-panel screen-header">
                     <div>
+                        <p class="hero-kicker">Campaign</p>
                         <h2>Choose Your Front</h2>
-                        <p class="screen-subtitle">Pick a battlefield, review its pressure, and deploy without fighting blurry canvas text.</p>
+                        <p class="screen-subtitle">Pick a battlefield, review the pressure, and deploy.</p>
                     </div>
                     <div class="screen-actions">
                         <button class="dom-button" data-action="back">Main Menu</button>
@@ -148,7 +147,10 @@ export default class DomUI {
         });
 
         if (this.settingsOpen) {
-            this.renderSettingsModal({ soundManager, onClose: () => this.closeSettings(() => this.showLevelSelect({ levels, onBack, onPlayLevel, onOpenSettings, soundManager })) });
+            this.renderSettingsModal({
+                soundManager,
+                onClose: () => this.closeSettings(() => this.showLevelSelect({ levels, onBack, onPlayLevel, onOpenSettings, soundManager }))
+            });
         }
     }
 
@@ -176,7 +178,7 @@ export default class DomUI {
         modal.innerHTML = `
             <div class="settings-modal">
                 <h3 class="settings-title">Settings</h3>
-                <p class="settings-copy">Use HTML controls for cleaner presentation while gameplay stays in canvas.</p>
+                <p class="settings-copy">Adjust audio before starting a run.</p>
                 <div class="setting-block">
                     <div class="setting-row">
                         <span class="setting-label">Master volume</span>
@@ -290,18 +292,10 @@ export default class DomUI {
         const action = target.dataset.action;
         const value = target.dataset.value;
 
-        if (action === "tower" && this.callbacks.onSelectTowerType) {
-            this.callbacks.onSelectTowerType(value);
-        }
-        if (action === "upgrade" && this.callbacks.onUpgrade) {
-            this.callbacks.onUpgrade(value);
-        }
-        if (action === "sell" && this.callbacks.onSell) {
-            this.callbacks.onSell();
-        }
-        if (action === "overlay" && this.callbacks.onOverlayAction) {
-            this.callbacks.onOverlayAction(value);
-        }
+        if (action === "tower" && this.callbacks.onSelectTowerType) this.callbacks.onSelectTowerType(value);
+        if (action === "upgrade" && this.callbacks.onUpgrade) this.callbacks.onUpgrade(value);
+        if (action === "sell" && this.callbacks.onSell) this.callbacks.onSell();
+        if (action === "overlay" && this.callbacks.onOverlayAction) this.callbacks.onOverlayAction(value);
     }
 
     updateGame(state) {
@@ -421,19 +415,17 @@ export default class DomUI {
 
         const title = state.victory ? "Victory" : "Defeat";
         const copy = state.victory
-            ? "The route is secure. Choose your next move and keep the campaign pushing forward."
-            : "The line broke this round. Restart, adjust your build, and try the route again.";
+            ? "The route is secure. Press on to the next front or return to command."
+            : "The line broke. Rebuild, regroup, and try the route again.";
 
         return `
-            <div class="game-ui-modal-wrap">
-                <div class="game-ui-modal">
-                    <div class="game-ui-modal-title">${title}</div>
-                    <div class="game-ui-modal-copy">${copy}</div>
-                    <div class="game-ui-modal-actions">
-                        <button class="game-ui-button" data-action="overlay" data-value="restart">Restart</button>
-                        <button class="game-ui-button" data-action="overlay" data-value="levels">Levels</button>
-                        <button class="game-ui-button" data-action="overlay" data-value="menu">Menu</button>
-                    </div>
+            <div class="game-ui-modal">
+                <h3 class="game-ui-modal-title">${title}</h3>
+                <p class="game-ui-modal-copy">${copy}</p>
+                <div class="game-ui-modal-actions">
+                    <button class="game-ui-button" data-action="overlay" data-value="restart">Restart</button>
+                    <button class="game-ui-button" data-action="overlay" data-value="levels">Level Select</button>
+                    <button class="game-ui-button" data-action="overlay" data-value="menu">Main Menu</button>
                 </div>
             </div>
         `;

@@ -1,21 +1,20 @@
 import Enemy from "../core/Enemy.js";
 import Tower from "../core/Tower.js";
-import { TOWER_METADATA } from "../config.js";
 import level1 from "../levels/level1.js";
 import level2 from "../levels/level2.js";
 import level3 from "../levels/level3.js";
 import MainMenuScene from "./MainMenuScene.js";
 import LevelSelectScene from "./LevelSelectScene.js";
 import UIRenderer from "../ui/UIRenderer.js";
-import DomUI from "../ui/DomUI.js";
+import { TOWER_METADATA } from "../config.js";
 
 export default class GameScene {
-    constructor(canvas, sceneManager, soundManager) {
+    constructor(canvas, sceneManager, soundManager, domUi) {
         this.canvas = canvas;
         this.sceneManager = sceneManager;
         this.soundManager = soundManager;
+        this.domUI = domUi;
         this.ui = new UIRenderer(canvas);
-        this.domUI = new DomUI(document.getElementById("dom-ui-root"));
 
         this.levels = [
             { id: 0, name: level1.name, data: level1 },
@@ -175,47 +174,10 @@ export default class GameScene {
         this.soundManager.playClick();
     }
 
-    getTowerButtonIndex(x, y) {
-        return this.layout.towerButtonRects.findIndex((rect) => x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height);
-    }
-
-    getOverlayButtonAt(x, y) {
-        if (!this.gameOver && !this.victory) return null;
-
-        for (const [key, button] of Object.entries(this.layout.overlayButtons)) {
-            if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
-                return key;
-            }
-        }
-
-        return null;
-    }
-
-    getHoveredUpgradeButton(x, y) {
-        if (!this.selectedTower) return null;
-
-        const choices = this.selectedTower.getUpgradeChoices();
-        for (let i = 0; i < choices.length; i++) {
-            const button = this.layout.upgradeButtons[i];
-            if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
-                return `upgrade-${choices[i].id}`;
-            }
-        }
-
-        const sellButton = this.layout.sellButton;
-        if (x >= sellButton.x && x <= sellButton.x + sellButton.width && y >= sellButton.y && y <= sellButton.y + sellButton.height) {
-            return "sell-tower";
-        }
-
-        return null;
-    }
-
     getBuildTileAt(x, y) {
         for (let i = 0; i < this.buildTiles.length; i++) {
             const tile = this.buildTiles[i];
-            if (Math.hypot(tile.x - x, tile.y - y) <= 24) {
-                return { tile, index: i };
-            }
+            if (Math.hypot(tile.x - x, tile.y - y) <= 24) return { tile, index: i };
         }
         return null;
     }
@@ -235,8 +197,8 @@ export default class GameScene {
     handleOverlayAction(action) {
         this.soundManager.playConfirm();
         if (action === "restart") this.loadLevel(this.currentLevelIndex);
-        if (action === "levels") this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
-        if (action === "menu") this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager));
+        if (action === "levels") this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager, this.domUI));
+        if (action === "menu") this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager, this.domUI));
     }
 
     handleClick(event) {
@@ -266,7 +228,6 @@ export default class GameScene {
 
         const tower = new Tower(buildSpot.tile.x, buildSpot.tile.y, this.selectedType);
         tower.buildTileIndex = buildSpot.index;
-
         this.towers.push(tower);
         this.occupiedBuildTiles.add(buildSpot.index);
         this.gold -= cost;
@@ -281,7 +242,6 @@ export default class GameScene {
         this.hoveredId = null;
         this.hoveredEnemy = null;
         this.hoveredTower = null;
-
 
         const hoveredTower = this.getTowerAt(x, y);
         if (hoveredTower) {
@@ -329,10 +289,8 @@ export default class GameScene {
             }
 
             const waveCleared = this.pendingWave.length === 0 && this.enemies.length === 0;
-
             this.enemies = this.enemies.filter((enemy) => !enemy.dead && !enemy.escaped);
             this.projectiles = this.projectiles.filter((projectile) => !projectile.dead);
-
             if (this.hoveredEnemy?.dead || this.hoveredEnemy?.escaped) this.hoveredEnemy = null;
 
             if (this.lives <= 0) {
@@ -459,22 +417,6 @@ export default class GameScene {
         ctx.stroke();
         ctx.restore();
 
-        const { worldRect } = this.layout;
-        ctx.save();
-        const vignette = ctx.createRadialGradient(
-            worldRect.x + worldRect.width * 0.5,
-            worldRect.y + worldRect.height * 0.5,
-            worldRect.width * 0.1,
-            worldRect.x + worldRect.width * 0.5,
-            worldRect.y + worldRect.height * 0.5,
-            worldRect.width * 0.7
-        );
-        vignette.addColorStop(0, "rgba(255,255,255,0)");
-        vignette.addColorStop(1, "rgba(4,8,14,0.12)");
-        ctx.fillStyle = vignette;
-        ctx.fillRect(worldRect.x, worldRect.y, worldRect.width, worldRect.height);
-        ctx.restore();
-
         for (let i = 0; i < this.buildTiles.length; i++) {
             const tile = this.buildTiles[i];
             const occupied = this.occupiedBuildTiles.has(i);
@@ -517,420 +459,64 @@ export default class GameScene {
     }
 
     drawRangeIndicators(ctx) {
-        if (this.selectedTower) {
-            this.ui.drawRangeRing(ctx, this.selectedTower.x, this.selectedTower.y, this.selectedTower.range, {
-                fill: "rgba(96, 165, 250, 0.12)",
-                stroke: "rgba(191, 219, 254, 0.55)"
-            });
-        }
-
-        if (this.hoveredTower && this.hoveredTower !== this.selectedTower) {
-            this.ui.drawRangeRing(ctx, this.hoveredTower.x, this.hoveredTower.y, this.hoveredTower.range, {
-                fill: "rgba(167, 139, 250, 0.08)",
-                stroke: "rgba(216, 180, 254, 0.42)"
-            });
-        }
-
-        const hoveredBuildIndex = this.hoveredId?.startsWith("build-") ? Number(this.hoveredId.split("-")[1]) : null;
-        if (hoveredBuildIndex != null && !Number.isNaN(hoveredBuildIndex)) {
-            const tile = this.buildTiles[hoveredBuildIndex];
-            const previewRange = new Tower(tile.x, tile.y, this.selectedType).range;
-            this.ui.drawRangeRing(ctx, tile.x, tile.y, previewRange, {
-                fill: "rgba(34, 197, 94, 0.1)",
-                stroke: "rgba(187, 247, 208, 0.5)"
-            });
-        }
-    }
-
-    drawImpactEffect(ctx, effect) {
-        const alpha = effect.life / effect.maxLife;
+        if (!this.selectedTower) return;
         ctx.save();
-        ctx.strokeStyle = effect.color;
-        ctx.globalAlpha = alpha;
-        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        ctx.arc(this.selectedTower.x, this.selectedTower.y, this.selectedTower.range, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(220, 232, 255, 0.58)";
+        ctx.lineWidth = 2;
         ctx.stroke();
         ctx.restore();
     }
 
+    drawImpactEffect(ctx, effect) {
+        ctx.save();
+        ctx.globalAlpha = effect.life / effect.maxLife;
+        ctx.beginPath();
+        ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        ctx.fillStyle = effect.color;
+        ctx.fill();
+        ctx.restore();
+    }
+
     drawDamageNumber(ctx, number) {
-        const alpha = number.life / number.maxLife;
         ctx.save();
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = number.life / number.maxLife;
         ctx.fillStyle = number.color;
-        ctx.font = "700 15px Inter";
-        ctx.fillText(`${number.value}`, number.x, number.y);
+        ctx.font = "bold 14px Inter";
+        ctx.fillText(String(number.value), number.x, number.y);
         ctx.restore();
-    }
-
-    drawHud(ctx) {
-        const { topBar } = this.layout;
-        this.ui.drawPanel(ctx, topBar.x, topBar.y, topBar.width, topBar.height, {
-            radius: 24,
-            fill: "rgba(7, 12, 22, 0.88)",
-            border: "rgba(255,255,255,0.12)",
-            glow: "rgba(15, 23, 42, 0.3)"
-        });
-
-        const stats = [
-            { label: "Gold", value: `${this.gold}`, accent: "#f1ca72" },
-            { label: "Lives", value: `${this.lives}`, accent: "#7ef0c2" },
-            {
-                label: "Wave",
-                value: `${Math.min(this.waveIndex + 1, this.currentLevel.data.waves.length)}/${this.currentLevel.data.waves.length}`,
-                accent: "#7fb3ff"
-            }
-        ];
-
-        stats.forEach((stat, index) => {
-            const x = topBar.x + 18 + index * 118;
-            this.ui.drawPanel(ctx, x, topBar.y + 12, 106, 48, {
-                radius: 18,
-                fill: "rgba(14, 23, 38, 0.92)",
-                border: "rgba(255,255,255,0.08)",
-                glow: "rgba(0,0,0,0)"
-            });
-
-            ctx.save();
-            ctx.fillStyle = stat.accent;
-            ctx.font = "700 11px Inter";
-            ctx.fillText(stat.label.toUpperCase(), x + 14, topBar.y + 28);
-            ctx.fillStyle = "#f8fbff";
-            ctx.font = "700 18px Inter";
-            ctx.fillText(stat.value, x + 14, topBar.y + 50);
-            ctx.restore();
-        });
-
-        const progressRect = { x: topBar.x + topBar.width - 258, y: topBar.y + 30, width: 214, height: 12 };
-        const totalInWave = this.currentLevel.data.waves[Math.min(this.waveIndex, this.currentLevel.data.waves.length - 1)]?.length ?? 1;
-        const progressed = totalInWave === 0 ? 1 : 1 - this.pendingWave.length / totalInWave;
-        this.ui.drawMeter(ctx, progressRect, this.victory ? 1 : progressed, {
-            start: "#7ef0c2",
-            end: "#7fb3ff",
-            track: "rgba(255,255,255,0.08)",
-            border: "rgba(255,255,255,0.08)"
-        });
-
-        ctx.save();
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 18px Cinzel";
-        ctx.fillText(this.currentLevel.name, topBar.x + topBar.width * 0.56, topBar.y + 30);
-        ctx.fillStyle = "rgba(194, 206, 223, 0.72)";
-        ctx.font = "500 12px Inter";
-        ctx.fillText(`Next clear bonus ${this.pendingWaveBonus}`, topBar.x + topBar.width * 0.56, topBar.y + 50);
-        ctx.fillText("Wave pressure", progressRect.x + progressRect.width / 2, topBar.y + 20);
-        ctx.restore();
-    }
-
-    drawTowerDock(ctx) {
-        const { towerDock, towerButtonRects } = this.layout;
-        this.ui.drawPanel(ctx, towerDock.x, towerDock.y, towerDock.width, towerDock.height, {
-            radius: 26,
-            fill: "rgba(7, 12, 22, 0.9)",
-            border: "rgba(255,255,255,0.1)",
-            glow: "rgba(15, 23, 42, 0.3)"
-        });
-
-        ctx.save();
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 12px Inter";
-        ctx.fillText("Tower Dock", towerDock.x + 16, towerDock.y + 18);
-        ctx.fillStyle = "rgba(194, 206, 223, 0.68)";
-        ctx.font = "500 11px Inter";
-        ctx.fillText("Pick a blueprint, then place it on a marked build tile.", towerDock.x + 16, towerDock.y + 34);
-        ctx.restore();
-
-        towerButtonRects.forEach((rect, index) => {
-            const type = this.buttons[index];
-            const meta = TOWER_METADATA[type];
-            const hovered = this.hoveredId === `tower-${type}`;
-            const active = this.selectedType === type && !this.selectedTower;
-
-            this.ui.drawPanel(ctx, rect.x, rect.y, rect.width, rect.height, {
-                radius: 20,
-                fill: active
-                    ? "rgba(23, 35, 56, 0.98)"
-                    : hovered
-                        ? "rgba(18, 29, 47, 0.98)"
-                        : "rgba(12, 20, 33, 0.95)",
-                border: active
-                    ? "rgba(255, 235, 177, 0.36)"
-                    : hovered
-                        ? "rgba(181, 215, 255, 0.26)"
-                        : "rgba(255,255,255,0.08)",
-                glow: hovered || active ? `${meta.accent}33` : "rgba(0,0,0,0)"
-            });
-
-            ctx.save();
-            ctx.fillStyle = `${meta.accent}33`;
-            ctx.beginPath();
-            ctx.arc(rect.x + rect.width - 22, rect.y + 18, 18, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = meta.accent;
-            ctx.font = "700 11px Inter";
-            ctx.fillText(meta.shortLabel, rect.x + 12, rect.y + 20);
-            ctx.fillStyle = "#f8fbff";
-            ctx.font = "700 15px Inter";
-            ctx.fillText(meta.label, rect.x + 12, rect.y + 40);
-            ctx.fillStyle = "rgba(194, 206, 223, 0.72)";
-            ctx.font = "500 11px Inter";
-            ctx.fillText(meta.role, rect.x + 12, rect.y + 58);
-            ctx.fillStyle = active ? "#f1ca72" : "#f8fbff";
-            ctx.font = "700 12px Inter";
-            ctx.fillText(`${this.towerCosts[type]} gold`, rect.x + 12, rect.y + 78);
-            ctx.restore();
-        });
-    }
-
-    drawSidebar(ctx) {
-        const { sidebar } = this.layout;
-        this.ui.drawPanel(ctx, sidebar.x, sidebar.y, sidebar.width, sidebar.height, {
-            radius: 26,
-            fill: "rgba(8, 13, 22, 0.9)",
-            border: "rgba(255,255,255,0.1)",
-            glow: "rgba(15, 23, 42, 0.34)"
-        });
-
-        ctx.save();
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 12px Inter";
-        ctx.fillText("Command Panel", sidebar.x + 16, sidebar.y + 20);
-        ctx.fillStyle = "rgba(194, 206, 223, 0.68)";
-        ctx.font = "500 11px Inter";
-        ctx.fillText("Inspect selected towers or preview the active blueprint.", sidebar.x + 16, sidebar.y + 36);
-        ctx.restore();
-
-        if (this.selectedTower) {
-            this.drawSelectedTowerPanel(ctx);
-        } else {
-            this.drawSelectedTypePanel(ctx);
-        }
-    }
-
-    drawSelectedTypePanel(ctx) {
-        const { sidebar } = this.layout;
-        const preview = new Tower(0, 0, this.selectedType);
-        const meta = TOWER_METADATA[this.selectedType];
-        const stats = [
-            { label: "Damage", value: `${Math.round(preview.damage)}` },
-            { label: "Range", value: `${Math.round(preview.range)}` },
-            { label: "Rate", value: preview.rate.toFixed(2) },
-            { label: "Cost", value: `${this.towerCosts[this.selectedType]}` }
-        ];
-
-        ctx.save();
-        ctx.fillStyle = `${meta.accent}33`;
-        ctx.beginPath();
-        ctx.arc(sidebar.x + sidebar.width - 44, sidebar.y + 44, 28, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 22px Cinzel";
-        ctx.fillText(meta.label, sidebar.x + 16, sidebar.y + 62);
-        ctx.fillStyle = "rgba(194, 206, 223, 0.74)";
-        ctx.font = "500 13px Inter";
-        ctx.fillText(meta.role, sidebar.x + 16, sidebar.y + 86);
-        ctx.fillText(preview.getAbilitySummary(), sidebar.x + 16, sidebar.y + 108);
-        ctx.restore();
-
-        this.drawStatGrid(ctx, stats, sidebar.x + 14, sidebar.y + 132, sidebar.width - 28);
-
-        ctx.save();
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 12px Inter";
-        ctx.fillText("Placement", sidebar.x + 16, sidebar.y + 252);
-        ctx.fillStyle = "rgba(194, 206, 223, 0.74)";
-        ctx.font = "500 13px Inter";
-        ctx.fillText("Move to a highlighted build tile to preview range.", sidebar.x + 16, sidebar.y + 278);
-        ctx.fillText("Click once to place the tower if you have enough gold.", sidebar.x + 16, sidebar.y + 300);
-        ctx.fillText("Select an existing tower to inspect upgrades and sell value.", sidebar.x + 16, sidebar.y + 334);
-        ctx.restore();
-    }
-
-    drawSelectedTowerPanel(ctx) {
-        const { sidebar, upgradeButtons, sellButton } = this.layout;
-        const stats = this.selectedTower.getDisplayStats();
-        const cost = this.selectedTower.getUpgradeCost();
-        const choices = this.selectedTower.getUpgradeChoices();
-        const meta = TOWER_METADATA[this.selectedTower.type];
-
-        ctx.save();
-        ctx.fillStyle = `${meta.accent}33`;
-        ctx.beginPath();
-        ctx.arc(sidebar.x + sidebar.width - 44, sidebar.y + 44, 28, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 22px Cinzel";
-        ctx.fillText(stats.name, sidebar.x + 16, sidebar.y + 62);
-        ctx.fillStyle = "rgba(194, 206, 223, 0.74)";
-        ctx.font = "500 13px Inter";
-        ctx.fillText(`Level ${stats.level} ${meta.role}`, sidebar.x + 16, sidebar.y + 86);
-        ctx.fillText(stats.ability, sidebar.x + 16, sidebar.y + 108);
-        ctx.restore();
-
-        this.drawStatGrid(ctx, [
-            { label: "Damage", value: `${stats.damage}` },
-            { label: "Range", value: `${stats.range}` },
-            { label: "Rate", value: `${stats.rate}` },
-            { label: "Sell", value: `${stats.sellValue}` }
-        ], sidebar.x + 14, sidebar.y + 132, sidebar.width - 28);
-
-        ctx.save();
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 12px Inter";
-        ctx.fillText("Upgrade Paths", sidebar.x + 16, sidebar.y + 252);
-        ctx.fillStyle = "rgba(194, 206, 223, 0.74)";
-        ctx.font = "500 12px Inter";
-        ctx.fillText(cost != null ? `Upgrade cost ${cost}` : "Max level reached", sidebar.x + 16, sidebar.y + 270);
-        ctx.fillText(`Invested ${stats.invested}`, sidebar.x + 148, sidebar.y + 270);
-        ctx.restore();
-
-        for (let i = 0; i < choices.length; i++) {
-            const button = upgradeButtons[i];
-            const enabled = this.gold >= (cost ?? 9999);
-            this.ui.drawButton(ctx, button, choices[i].label, {
-                hovered: this.hoveredId === `upgrade-${choices[i].id}`,
-                disabled: !enabled,
-                radius: 16,
-                font: "700 13px Inter"
-            });
-        }
-
-        this.ui.drawButton(ctx, sellButton, `Sell Tower +${stats.sellValue}`, {
-            hovered: this.hoveredId === "sell-tower",
-            radius: 16,
-            font: "700 13px Inter"
-        });
-    }
-
-    drawStatGrid(ctx, stats, startX, startY, width) {
-        const gap = 10;
-        const cardWidth = Math.floor((width - gap) / 2);
-        const cardHeight = 52;
-
-        stats.forEach((stat, index) => {
-            const column = index % 2;
-            const row = Math.floor(index / 2);
-            const x = startX + column * (cardWidth + gap);
-            const y = startY + row * (cardHeight + gap);
-
-            this.ui.drawPanel(ctx, x, y, cardWidth, cardHeight, {
-                radius: 18,
-                fill: "rgba(12, 20, 33, 0.95)",
-                border: "rgba(255,255,255,0.08)",
-                glow: "rgba(0,0,0,0)"
-            });
-
-            ctx.save();
-            ctx.fillStyle = "rgba(194, 206, 223, 0.66)";
-            ctx.font = "700 10px Inter";
-            ctx.fillText(stat.label.toUpperCase(), x + 12, y + 18);
-            ctx.fillStyle = "#f8fbff";
-            ctx.font = "700 18px Inter";
-            ctx.fillText(stat.value, x + 12, y + 38);
-            ctx.restore();
-        });
     }
 
     drawHoverTooltip(ctx) {
-        if (this.hoveredEnemy) {
-            const traits = [];
-            if (this.hoveredEnemy.damageReduction > 0) traits.push("Shielded");
-            if (this.hoveredEnemy.hasEffect("burn")) traits.push("Burning");
-            if (this.hoveredEnemy.hasEffect("slow")) traits.push("Slowed");
-            if (this.hoveredEnemy.hasEffect("freeze")) traits.push("Frozen");
-            if (this.hoveredEnemy.hasEffect("stun")) traits.push("Stunned");
-            this.ui.drawTooltip(ctx, this.pointer.x + 14, this.pointer.y + 14, [
-                this.hoveredEnemy.name,
-                `HP ${Math.max(0, Math.ceil(this.hoveredEnemy.hp))}/${this.hoveredEnemy.maxHp}`,
-                `Speed ${this.hoveredEnemy.baseSpeed}`,
-                traits.length > 0 ? `Traits ${traits.join(", ")}` : "Traits None"
-            ]);
-            return;
-        }
+        const enemy = this.hoveredEnemy;
+        if (!enemy) return;
 
-        if (this.hoveredTower) {
-            const stats = this.hoveredTower.getDisplayStats();
-            this.ui.drawTooltip(ctx, this.pointer.x + 14, this.pointer.y + 14, [
-                stats.name,
-                `Level ${stats.level}`,
-                `Damage ${stats.damage}`,
-                `Range ${stats.range}`,
-                `Rate ${stats.rate}`
-            ]);
-            return;
-        }
-
-        if (this.hoveredId?.startsWith("tower-")) {
-            const type = this.hoveredId.replace("tower-", "");
-            const preview = new Tower(0, 0, type);
-            this.ui.drawTooltip(ctx, this.pointer.x + 14, this.pointer.y + 14, [
-                TOWER_METADATA[type].label,
-                `Cost ${this.towerCosts[type]}`,
-                `Damage ${preview.damage}`,
-                `Range ${Math.round(preview.range)}`,
-                `Rate ${preview.rate.toFixed(2)}`
-            ]);
-        }
-    }
-
-    drawOverlay(ctx, text) {
+        const x = enemy.x + 14;
+        const y = enemy.y - 18;
         ctx.save();
-        ctx.fillStyle = "rgba(3, 8, 16, 0.76)";
-        ctx.fillRect(0, 0, this.canvas.logicalWidth ?? this.canvas.width, this.canvas.logicalHeight ?? this.canvas.height);
+        ctx.fillStyle = "rgba(8, 13, 22, 0.92)";
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x, y, 120, 46, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#f8f4eb";
+        ctx.font = "bold 12px Inter";
+        ctx.fillText(enemy.name, x + 10, y + 16);
+        ctx.fillStyle = "rgba(232, 222, 205, 0.82)";
+        ctx.font = "11px Inter";
+        ctx.fillText(`HP ${Math.ceil(enemy.hp)} / ${enemy.maxHp}`, x + 10, y + 32);
         ctx.restore();
-
-        const { overlay, overlayButtons } = this.layout;
-        this.ui.drawPanel(ctx, overlay.x, overlay.y, overlay.width, overlay.height, {
-            radius: 30,
-            fill: "rgba(7, 12, 22, 0.95)",
-            border: "rgba(255,255,255,0.12)",
-            glow: "rgba(15, 23, 42, 0.35)"
-        });
-
-        ctx.save();
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#f8fbff";
-        ctx.font = "700 42px Cinzel";
-        ctx.fillText(text, overlay.x + overlay.width / 2, overlay.y + 72);
-        ctx.fillStyle = "rgba(228, 236, 248, 0.76)";
-        ctx.font = "500 16px Inter";
-        ctx.fillText(
-            text === "Victory" ? "The frontier holds. Push on to the next route." : "The line collapsed. Rebuild and tighten coverage.",
-            overlay.x + overlay.width / 2,
-            overlay.y + 108
-        );
-        ctx.restore();
-
-        this.ui.drawButton(ctx, overlayButtons.restart, "Restart", {
-            hovered: this.hoveredId === "restart",
-            active: true,
-            radius: 16,
-            font: "700 14px Inter"
-        });
-        this.ui.drawButton(ctx, overlayButtons.levels, "Level Select", {
-            hovered: this.hoveredId === "levels",
-            radius: 16,
-            font: "700 14px Inter"
-        });
-        this.ui.drawButton(ctx, overlayButtons.menu, "Main Menu", {
-            hovered: this.hoveredId === "menu",
-            radius: 16,
-            font: "700 14px Inter"
-        });
     }
 
     darkenColor(hex, amount) {
-        if (!hex?.startsWith("#")) return hex;
-        const value = hex.replace("#", "");
-        const full = value.length === 3
-            ? value.split("").map((part) => part + part).join("")
-            : value;
-        const numeric = Number.parseInt(full, 16);
-        const r = Math.max(0, Math.min(255, Math.round(((numeric >> 16) & 255) * (1 - amount))));
-        const g = Math.max(0, Math.min(255, Math.round(((numeric >> 8) & 255) * (1 - amount))));
-        const b = Math.max(0, Math.min(255, Math.round((numeric & 255) * (1 - amount))));
-        return `rgb(${r}, ${g}, ${b})`;
+        const normalized = hex.replace("#", "");
+        const value = Number.parseInt(normalized, 16);
+        const r = Math.max(0, Math.min(255, ((value >> 16) & 255) * (1 - amount)));
+        const g = Math.max(0, Math.min(255, ((value >> 8) & 255) * (1 - amount)));
+        const b = Math.max(0, Math.min(255, (value & 255) * (1 - amount)));
+        return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
     }
 }
