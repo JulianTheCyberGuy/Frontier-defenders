@@ -8,17 +8,18 @@ export default class UIRenderer {
 
     getPointerPosition(event) {
         const rect = this.canvas.getBoundingClientRect();
-        const logicalWidth = this.canvas.logicalWidth ?? this.canvas.width;
-        const logicalHeight = this.canvas.logicalHeight ?? this.canvas.height;
+        const source = event.touches?.[0] ?? event.changedTouches?.[0] ?? event;
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+
         return {
-            x: (event.clientX - rect.left) * (logicalWidth / rect.width),
-            y: (event.clientY - rect.top) * (logicalHeight / rect.height)
+            x: (source.clientX - rect.left) * scaleX,
+            y: (source.clientY - rect.top) * scaleY
         };
     }
 
     getMainMenuLayout() {
-        const width = this.canvas.logicalWidth ?? this.canvas.width;
-        const height = this.canvas.logicalHeight ?? this.canvas.height;
+        const { width, height } = this.canvas;
         const frame = {
             x: 54,
             y: 46,
@@ -62,8 +63,7 @@ export default class UIRenderer {
     }
 
     getLevelSelectLayout(cardCount) {
-        const width = this.canvas.logicalWidth ?? this.canvas.width;
-        const height = this.canvas.logicalHeight ?? this.canvas.height;
+        const { width, height } = this.canvas;
         const frame = {
             x: 38,
             y: 32,
@@ -96,8 +96,7 @@ export default class UIRenderer {
     }
 
     getGameLayout(towerCount) {
-        const width = this.canvas.logicalWidth ?? this.canvas.width;
-        const height = this.canvas.logicalHeight ?? this.canvas.height;
+        const { width, height } = this.canvas;
         const padding = 18;
         const gap = 16;
         const topBar = { x: padding, y: padding, width: width - padding * 2, height: 72 };
@@ -166,8 +165,7 @@ export default class UIRenderer {
     }
 
     drawBackdrop(ctx, palette = {}) {
-        const width = this.canvas.logicalWidth ?? this.canvas.width;
-        const height = this.canvas.logicalHeight ?? this.canvas.height;
+        const { width, height } = this.canvas;
         const top = palette.top ?? "#101828";
         const bottom = palette.bottom ?? "#060b14";
         const accent = palette.accent ?? "rgba(96, 165, 250, 0.18)";
@@ -305,8 +303,8 @@ export default class UIRenderer {
         ctx.font = "500 13px Inter";
         const width = Math.max(...lines.map((line) => ctx.measureText(line).width)) + 24;
         const height = lines.length * 18 + 20;
-        const tooltipX = Math.min((this.canvas.logicalWidth ?? this.canvas.width) - width - 14, Math.max(14, x));
-        const tooltipY = Math.min((this.canvas.logicalHeight ?? this.canvas.height) - height - 14, Math.max(14, y));
+        const tooltipX = Math.min(this.canvas.width - width - 14, Math.max(14, x));
+        const tooltipY = Math.min(this.canvas.height - height - 14, Math.max(14, y));
 
         this.drawPanel(ctx, tooltipX, tooltipY, width, height, {
             radius: 14,
