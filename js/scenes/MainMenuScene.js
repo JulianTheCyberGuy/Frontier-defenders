@@ -1,21 +1,19 @@
 import LevelSelectScene from "./LevelSelectScene.js";
+import UIRenderer from "../ui/UIRenderer.js";
 
 export default class MainMenuScene {
     constructor(canvas, sceneManager, soundManager) {
         this.canvas = canvas;
         this.sceneManager = sceneManager;
         this.soundManager = soundManager;
+        this.ui = new UIRenderer(canvas);
 
-        this.button = {
-            x: 380,
-            y: 240,
-            width: 200,
-            height: 60
+        this.buttons = {
+            start: { x: 380, y: 294, width: 200, height: 54 },
+            info: { x: 380, y: 360, width: 200, height: 46 }
         };
-        this.volumeButton = { x: 820, y: 20, width: 120, height: 34 };
 
-        this.hovered = false;
-        this.volumeHovered = false;
+        this.hoveredId = null;
 
         this.handleClick = this.handleClick.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -24,79 +22,86 @@ export default class MainMenuScene {
     onEnter() {
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
-        this.soundManager.startMenuMusic();
     }
 
     onExit() {
         this.canvas.removeEventListener("click", this.handleClick);
         this.canvas.removeEventListener("mousemove", this.handleMouseMove);
+        this.canvas.style.cursor = "default";
     }
 
-    isInsideButton(x, y) {
-        return (
-            x >= this.button.x &&
-            x <= this.button.x + this.button.width &&
-            y >= this.button.y &&
-            y <= this.button.y + this.button.height
-        );
-    }
-
-    isInsideVolumeButton(x, y) {
-        return (
-            x >= this.volumeButton.x &&
-            x <= this.volumeButton.x + this.volumeButton.width &&
-            y >= this.volumeButton.y &&
-            y <= this.volumeButton.y + this.volumeButton.height
-        );
-    }
-
-    handleClick(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        if (this.isInsideVolumeButton(x, y)) {
-            this.soundManager.cycleVolume();
-            return;
+    getButtonAt(x, y) {
+        for (const [id, button] of Object.entries(this.buttons)) {
+            if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
+                return id;
+            }
         }
+        return null;
+    }
 
-        if (this.isInsideButton(x, y)) {
+    handleClick(event) {
+        const { x, y } = this.ui.getPointerPosition(event);
+        const action = this.getButtonAt(x, y);
+
+        if (action === "start") {
             this.soundManager.playConfirm();
-            this.sceneManager.changeScene(
-                new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager)
-            );
+            this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
         }
     }
 
-    handleMouseMove(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        this.hovered = this.isInsideButton(x, y);
-        this.volumeHovered = this.isInsideVolumeButton(x, y);
-        this.canvas.style.cursor = this.hovered || this.volumeHovered ? "pointer" : "default";
+    handleMouseMove(event) {
+        const { x, y } = this.ui.getPointerPosition(event);
+        this.hoveredId = this.getButtonAt(x, y);
+        this.canvas.style.cursor = this.hoveredId === "start" ? "pointer" : "default";
     }
 
     update() {}
 
     render(ctx) {
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, 960, 540);
+        this.ui.drawBackdrop(ctx, {
+            top: "#0f1729",
+            bottom: "#070b13",
+            accent: "rgba(64, 145, 108, 0.18)"
+        });
 
-        ctx.fillStyle = "white";
-        ctx.font = "48px Arial";
-        ctx.fillText("Frontier Defenders", 220, 150);
+        this.ui.drawPanel(ctx, 150, 78, 660, 382, {
+            radius: 28,
+            fill: "rgba(8, 13, 23, 0.82)",
+            border: "rgba(255, 255, 255, 0.12)",
+            glow: "rgba(66, 153, 225, 0.12)"
+        });
 
-        ctx.fillStyle = this.hovered ? "#3f8a5f" : "#2c6e49";
-        ctx.fillRect(this.button.x, this.button.y, this.button.width, this.button.height);
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#f8fbff";
+        ctx.font = "700 18px Inter";
+        ctx.fillText("TACTICAL FANTASY TOWER DEFENSE", 480, 142);
+        ctx.font = "700 54px Cinzel";
+        ctx.fillText("Frontier Defenders", 480, 212);
+        ctx.fillStyle = "rgba(228, 236, 248, 0.78)";
+        ctx.font = "500 17px Inter";
+        ctx.fillText("Build your line, hold the path, and push back the siege.", 480, 252);
+        ctx.restore();
 
-        ctx.strokeStyle = this.hovered ? "#d9f5e5" : "white";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(this.button.x, this.button.y, this.button.width, this.button.height);
+        this.ui.drawButton(ctx, this.buttons.start, "Start Campaign", {
+            hovered: this.hoveredId === "start",
+            active: true,
+            radius: 18,
+            font: "700 16px Inter"
+        });
 
-        ctx.fillStyle = "white";
-        ctx.font = "24px Arial";
-        ctx.fillText("Start Game", this.button.x + 30, this.button.y + 38);
+        this.ui.drawButton(ctx, this.buttons.info, "3 handcrafted levels • 5 towers", {
+            hovered: false,
+            radius: 16,
+            font: "600 14px Inter",
+            disabled: true
+        });
+
+        ctx.save();
+        ctx.font = "600 13px Inter";
+        this.ui.drawPill(ctx, 246, 404, "Responsive screen scaling", { active: true, minWidth: 186, height: 32 });
+        this.ui.drawPill(ctx, 444, 404, "Modern HUD refresh", { minWidth: 162, height: 32 });
+        this.ui.drawPill(ctx, 618, 404, "Cleaner combat UI", { minWidth: 154, height: 32 });
+        ctx.restore();
     }
 }

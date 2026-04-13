@@ -1,20 +1,48 @@
 import GameScene from "./GameScene.js";
 import MainMenuScene from "./MainMenuScene.js";
+import UIRenderer from "../ui/UIRenderer.js";
 
 export default class LevelSelectScene {
     constructor(canvas, sceneManager, soundManager) {
         this.canvas = canvas;
         this.sceneManager = sceneManager;
         this.soundManager = soundManager;
+        this.ui = new UIRenderer(canvas);
 
         this.levelButtons = [
-            { id: 0, label: "Forest Road", x: 340, y: 170, width: 280, height: 50 },
-            { id: 1, label: "Ruined Keep", x: 340, y: 245, width: 280, height: 50 },
-            { id: 2, label: "Lava Dungeon Gate", x: 340, y: 320, width: 280, height: 50 }
+            {
+                id: 0,
+                label: "Forest Road",
+                subtitle: "Balanced route with clean sight lines",
+                accent: "rgba(74, 222, 128, 0.18)",
+                x: 120,
+                y: 174,
+                width: 220,
+                height: 184
+            },
+            {
+                id: 1,
+                label: "Ruined Keep",
+                subtitle: "Tighter turns and denser pressure",
+                accent: "rgba(96, 165, 250, 0.18)",
+                x: 370,
+                y: 174,
+                width: 220,
+                height: 184
+            },
+            {
+                id: 2,
+                label: "Lava Dungeon Gate",
+                subtitle: "Harsh terrain and punishing waves",
+                accent: "rgba(248, 113, 113, 0.18)",
+                x: 620,
+                y: 174,
+                width: 220,
+                height: 184
+            }
         ];
 
-        this.backButton = { x: 20, y: 20, width: 120, height: 40 };
-        this.volumeButton = { x: 820, y: 20, width: 120, height: 34 };
+        this.backButton = { x: 32, y: 28, width: 118, height: 42 };
         this.hoveredId = null;
 
         this.handleClick = this.handleClick.bind(this);
@@ -24,40 +52,21 @@ export default class LevelSelectScene {
     onEnter() {
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
-        this.soundManager.startMenuMusic();
     }
 
     onExit() {
         this.canvas.removeEventListener("click", this.handleClick);
         this.canvas.removeEventListener("mousemove", this.handleMouseMove);
+        this.canvas.style.cursor = "default";
     }
 
     getHoveredButton(x, y) {
-        if (
-            x >= this.volumeButton.x &&
-            x <= this.volumeButton.x + this.volumeButton.width &&
-            y >= this.volumeButton.y &&
-            y <= this.volumeButton.y + this.volumeButton.height
-        ) {
-            return "volume";
-        }
-
-        if (
-            x >= this.backButton.x &&
-            x <= this.backButton.x + this.backButton.width &&
-            y >= this.backButton.y &&
-            y <= this.backButton.y + this.backButton.height
-        ) {
+        if (x >= this.backButton.x && x <= this.backButton.x + this.backButton.width && y >= this.backButton.y && y <= this.backButton.y + this.backButton.height) {
             return "back";
         }
 
         for (const button of this.levelButtons) {
-            if (
-                x >= button.x &&
-                x <= button.x + button.width &&
-                y >= button.y &&
-                y <= button.y + button.height
-            ) {
+            if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
                 return `level-${button.id}`;
             }
         }
@@ -65,42 +74,29 @@ export default class LevelSelectScene {
         return null;
     }
 
-    handleClick(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
+    handleClick(event) {
+        const { x, y } = this.ui.getPointerPosition(event);
         const hovered = this.getHoveredButton(x, y);
-
-        if (hovered === "volume") {
-            this.soundManager.cycleVolume();
-            return;
-        }
 
         if (hovered === "back") {
             this.soundManager.playClick();
-            this.sceneManager.changeScene(
-                new MainMenuScene(this.canvas, this.sceneManager, this.soundManager)
-            );
+            this.sceneManager.changeScene(new MainMenuScene(this.canvas, this.sceneManager, this.soundManager));
             return;
         }
 
-        for (const btn of this.levelButtons) {
-            if (hovered === `level-${btn.id}`) {
+        for (const button of this.levelButtons) {
+            if (hovered === `level-${button.id}`) {
                 this.soundManager.playConfirm();
                 const gameScene = new GameScene(this.canvas, this.sceneManager, this.soundManager);
-                gameScene.loadLevel(btn.id);
+                gameScene.loadLevel(button.id);
                 this.sceneManager.changeScene(gameScene);
                 return;
             }
         }
     }
 
-    handleMouseMove(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
+    handleMouseMove(event) {
+        const { x, y } = this.ui.getPointerPosition(event);
         this.hoveredId = this.getHoveredButton(x, y);
         this.canvas.style.cursor = this.hoveredId ? "pointer" : "default";
     }
@@ -108,45 +104,64 @@ export default class LevelSelectScene {
     update() {}
 
     render(ctx) {
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, 960, 540);
+        this.ui.drawBackdrop(ctx, {
+            top: "#0d1424",
+            bottom: "#060a12",
+            accent: "rgba(96, 165, 250, 0.14)"
+        });
 
-        ctx.fillStyle = "white";
-        ctx.font = "36px Arial";
-        ctx.fillText("Select Level", 360, 110);
+        this.ui.drawButton(ctx, this.backButton, "Main Menu", {
+            hovered: this.hoveredId === "back",
+            radius: 14,
+            font: "600 14px Inter"
+        });
 
-        const volumeHovered = this.hoveredId === "volume";
-        ctx.fillStyle = volumeHovered ? "#2a2f3a" : "#1b1f27";
-        ctx.fillRect(this.volumeButton.x, this.volumeButton.y, this.volumeButton.width, this.volumeButton.height);
-        ctx.strokeStyle = volumeHovered ? "#8fe3ff" : "#6b7280";
-        ctx.strokeRect(this.volumeButton.x, this.volumeButton.y, this.volumeButton.width, this.volumeButton.height);
-        ctx.fillStyle = this.soundManager.masterVolume <= 0 ? "#ff9a62" : "#dbeafe";
-        ctx.font = "14px Arial";
-        ctx.fillText(this.soundManager.getVolumeLabel(), this.volumeButton.x + 14, this.volumeButton.y + 22);
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#f8fbff";
+        ctx.font = "700 38px Cinzel";
+        ctx.fillText("Choose Your Front", 480, 102);
+        ctx.fillStyle = "rgba(228, 236, 248, 0.74)";
+        ctx.font = "500 16px Inter";
+        ctx.fillText("Each battlefield has its own pacing, spacing, and pressure points.", 480, 132);
+        ctx.restore();
 
-        const backHovered = this.hoveredId === "back";
-        ctx.fillStyle = backHovered ? "#666" : "#444";
-        ctx.fillRect(this.backButton.x, this.backButton.y, this.backButton.width, this.backButton.height);
+        this.levelButtons.forEach((button, index) => {
+            const hovered = this.hoveredId === `level-${button.id}`;
+            this.ui.drawPanel(ctx, button.x, button.y, button.width, button.height, {
+                radius: 24,
+                fill: hovered ? "rgba(15, 24, 39, 0.96)" : "rgba(10, 17, 29, 0.84)",
+                border: hovered ? "rgba(191, 219, 254, 0.32)" : "rgba(255, 255, 255, 0.1)",
+                glow: hovered ? "rgba(96, 165, 250, 0.2)" : "rgba(0,0,0,0)"
+            });
 
-        ctx.strokeStyle = "white";
-        ctx.strokeRect(this.backButton.x, this.backButton.y, this.backButton.width, this.backButton.height);
+            ctx.save();
+            ctx.fillStyle = button.accent;
+            ctx.beginPath();
+            ctx.arc(button.x + button.width - 34, button.y + 32, 36, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
 
-        ctx.fillStyle = "white";
-        ctx.font = "18px Arial";
-        ctx.fillText("Main Menu", this.backButton.x + 18, this.backButton.y + 26);
+            ctx.save();
+            ctx.fillStyle = "#f8fbff";
+            ctx.font = "700 24px Cinzel";
+            ctx.fillText(button.label, button.x + 22, button.y + 50);
+            ctx.fillStyle = "rgba(228, 236, 248, 0.78)";
+            ctx.font = "500 14px Inter";
+            ctx.fillText(button.subtitle, button.x + 22, button.y + 80);
+            ctx.restore();
 
-        for (const btn of this.levelButtons) {
-            const hovered = this.hoveredId === `level-${btn.id}`;
-
-            ctx.fillStyle = hovered ? "#3f8a5f" : "#2c6e49";
-            ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
-
-            ctx.strokeStyle = hovered ? "#d9f5e5" : "white";
-            ctx.strokeRect(btn.x, btn.y, btn.width, btn.height);
-
-            ctx.fillStyle = "white";
-            ctx.font = "18px Arial";
-            ctx.fillText(btn.label, btn.x + 20, btn.y + 30);
-        }
+            this.ui.drawButton(ctx, {
+                x: button.x + 22,
+                y: button.y + 124,
+                width: button.width - 44,
+                height: 42
+            }, `Enter Level ${index + 1}`, {
+                hovered,
+                active: hovered,
+                radius: 14,
+                font: "700 14px Inter"
+            });
+        });
     }
 }
