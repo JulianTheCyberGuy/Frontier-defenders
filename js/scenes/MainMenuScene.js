@@ -1,5 +1,7 @@
 import LevelSelectScene from "./LevelSelectScene.js";
+import GameScene from "./GameScene.js";
 import UIRenderer from "../ui/UIRenderer.js";
+import SaveSystem from "../systems/SaveSystem.js";
 
 export default class MainMenuScene {
     constructor(canvas, sceneManager, soundManager) {
@@ -11,12 +13,15 @@ export default class MainMenuScene {
         this.layout = this.ui.getMainMenuLayout();
         this.time = 0;
         this.introFade = 1;
+        this.totalLevels = 3;
+        this.highestUnlockedLevel = SaveSystem.getHighestUnlockedLevel();
 
         this.handleClick = this.handleClick.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
     }
 
     onEnter() {
+        this.highestUnlockedLevel = SaveSystem.getHighestUnlockedLevel();
         this.refreshLayout();
         this.canvas.addEventListener("click", this.handleClick);
         this.canvas.addEventListener("mousemove", this.handleMouseMove);
@@ -45,6 +50,12 @@ export default class MainMenuScene {
         this.sceneManager.changeScene(new LevelSelectScene(this.canvas, this.sceneManager, this.soundManager));
     }
 
+    startCampaign() {
+        const gameScene = new GameScene(this.canvas, this.sceneManager, this.soundManager);
+        gameScene.loadLevel(this.highestUnlockedLevel);
+        this.sceneManager.changeScene(gameScene);
+    }
+
     handleClick(event) {
         this.refreshLayout();
         const { x, y } = this.ui.getPointerPosition(event);
@@ -53,6 +64,12 @@ export default class MainMenuScene {
         if (!action) return;
 
         this.soundManager.playConfirm();
+
+        if (action === "start") {
+            this.startCampaign();
+            return;
+        }
+
         this.openLevelSelect();
     }
 
@@ -71,6 +88,9 @@ export default class MainMenuScene {
     render(ctx) {
         this.refreshLayout();
         const { frame, hero, featurePanel, infoPanel, buttons, featurePills } = this.layout;
+        const levelsUnlocked = Math.min(this.highestUnlockedLevel + 1, this.totalLevels);
+        const campaignLabel = this.highestUnlockedLevel > 0 ? "Continue Campaign" : "Start Campaign";
+        const currentFront = ["Forest Road", "Ruined Keep", "Lava Dungeon Gate"][this.highestUnlockedLevel] ?? "Forest Road";
 
         this.ui.drawBackdrop(ctx, {
             top: "#08111e",
@@ -119,7 +139,7 @@ export default class MainMenuScene {
         ctx.fillText("clean placement choices, and disciplined upgrades.", hero.x + 28, hero.y + 234);
         ctx.restore();
 
-        this.ui.drawButton(ctx, buttons.start, "Start Campaign", {
+        this.ui.drawButton(ctx, buttons.start, campaignLabel, {
             hovered: this.hoveredId === "start",
             active: true,
             radius: 18,
@@ -133,16 +153,16 @@ export default class MainMenuScene {
 
         ctx.save();
         ctx.font = "600 13px Inter";
-        this.ui.drawPill(ctx, featurePills[0].x, featurePills[0].y, "Responsive canvas scaling", {
+        this.ui.drawPill(ctx, featurePills[0].x, featurePills[0].y, `${levelsUnlocked}/${this.totalLevels} levels unlocked`, {
             minWidth: featurePills[0].width,
             height: featurePills[0].height,
             active: true
         });
-        this.ui.drawPill(ctx, featurePills[1].x, featurePills[1].y, "Refreshed HUD layout", {
+        this.ui.drawPill(ctx, featurePills[1].x, featurePills[1].y, `Current front: ${currentFront}`, {
             minWidth: featurePills[1].width,
             height: featurePills[1].height
         });
-        this.ui.drawPill(ctx, featurePills[2].x, featurePills[2].y, "Cleaner menu presentation", {
+        this.ui.drawPill(ctx, featurePills[2].x, featurePills[2].y, "Progress saved locally", {
             minWidth: featurePills[2].width,
             height: featurePills[2].height
         });
@@ -164,7 +184,7 @@ export default class MainMenuScene {
         ctx.fillText("5 tower classes with branching upgrades", featurePanel.x + 20, featurePanel.y + 74);
         ctx.fillText("Status effects, splash hits, and combat feedback", featurePanel.x + 20, featurePanel.y + 104);
         ctx.fillText("Three handcrafted battlefields and custom wave sets", featurePanel.x + 20, featurePanel.y + 134);
-        ctx.fillText("Modernized scene flow with cleaner UI spacing", featurePanel.x + 20, featurePanel.y + 164);
+        ctx.fillText("Campaign progress now persists between sessions", featurePanel.x + 20, featurePanel.y + 164);
         ctx.restore();
 
         this.ui.drawPanel(ctx, infoPanel.x, infoPanel.y, infoPanel.width, infoPanel.height, {
@@ -183,7 +203,7 @@ export default class MainMenuScene {
         ctx.fillText("Choose a battlefield, build inside marked circles,", infoPanel.x + 20, infoPanel.y + 74);
         ctx.fillText("and keep enemies from reaching the end of the road.", infoPanel.x + 20, infoPanel.y + 98);
         ctx.fillText("Gold funds new towers and upgrades. Lost lives end the run.", infoPanel.x + 20, infoPanel.y + 134);
-        ctx.fillText("Hover towers and enemies in battle for quick stat readouts.", infoPanel.x + 20, infoPanel.y + 158);
+        ctx.fillText("Victories unlock the next front and save your progress locally.", infoPanel.x + 20, infoPanel.y + 158);
         ctx.restore();
 
         if (this.introFade > 0) {

@@ -7,6 +7,7 @@ import level3 from "../levels/level3.js";
 import MainMenuScene from "./MainMenuScene.js";
 import LevelSelectScene from "./LevelSelectScene.js";
 import UIRenderer from "../ui/UIRenderer.js";
+import SaveSystem from "../systems/SaveSystem.js";
 
 export default class GameScene {
     constructor(canvas, sceneManager, soundManager) {
@@ -119,6 +120,7 @@ export default class GameScene {
     startWave() {
         if (this.waveIndex >= this.currentLevel.data.waves.length) {
             this.victory = true;
+            SaveSystem.unlockNextLevel(this.currentLevelIndex, this.levels.length);
             if (!this.endSoundPlayed) {
                 this.soundManager.playVictory();
                 this.spawnParticles(this.layout.worldRect.x + this.layout.worldRect.width * 0.5, this.layout.worldRect.y + this.layout.worldRect.height * 0.5, '#7ef0c2', 28, 30, 120, 0.65, { size: 3, sizeVariance: 3.5, glow: 16 });
