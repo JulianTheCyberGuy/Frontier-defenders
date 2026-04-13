@@ -1,5 +1,8 @@
 :root {
     color-scheme: dark;
+    --bg-top: #08101c;
+    --bg-bottom: #04070d;
+    --frame: rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -18,11 +21,11 @@ body {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    font-family: "Inter", Arial, sans-serif;
+    font-family: "Inter", sans-serif;
     background:
-        radial-gradient(circle at top, rgba(77, 110, 174, 0.24), transparent 34%),
-        radial-gradient(circle at bottom right, rgba(69, 153, 109, 0.18), transparent 28%),
-        linear-gradient(180deg, #090d17 0%, #0d1220 45%, #070a12 100%);
+        radial-gradient(circle at top left, rgba(126, 240, 194, 0.12), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(127, 179, 255, 0.16), transparent 28%),
+        linear-gradient(180deg, var(--bg-top) 0%, #0a1120 42%, var(--bg-bottom) 100%);
     color: #f4f7fb;
 }
 
@@ -32,10 +35,19 @@ body::before {
     inset: 0;
     pointer-events: none;
     background-image:
-        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-    background-size: 32px 32px;
-    mask-image: radial-gradient(circle at center, black, transparent 82%);
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 34px 34px;
+    mask-image: radial-gradient(circle at center, black, transparent 84%);
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at center, transparent 50%, rgba(2, 4, 8, 0.54) 100%);
 }
 
 .game-shell {
@@ -44,18 +56,18 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 12px;
+    padding: 16px;
 }
 
 canvas {
     display: block;
-    width: min(100vw - 24px, calc((100vh - 24px) * 1.7777778));
+    width: min(calc(100vw - 32px), calc((100vh - 32px) * 1.7777778));
     height: auto;
-    max-height: calc(100vh - 24px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 22px;
+    max-height: calc(100vh - 32px);
+    border: 1px solid var(--frame);
+    border-radius: 26px;
     box-shadow:
-        0 24px 70px rgba(0, 0, 0, 0.5),
+        0 28px 90px rgba(0, 0, 0, 0.48),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
     background: #0d1321;
 }

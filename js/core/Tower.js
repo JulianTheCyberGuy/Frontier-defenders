@@ -241,6 +241,8 @@ export default class Tower {
         this.slowStrength = null;
         this.critChance = 0;
         this.cleaveCount = 0;
+        this.attackFlash = 0;
+        this.idlePhase = Math.random() * Math.PI * 2;
 
         this.applyBaseStats();
     }
@@ -263,12 +265,22 @@ export default class Tower {
 
     update(dt, enemies, projectiles, scene) {
         this.cool -= dt;
+        this.attackFlash = Math.max(0, this.attackFlash - dt * 4.5);
+        this.idlePhase += dt * 1.8;
         if (this.cool > 0) return;
 
         const targets = enemies.filter((enemy) => !enemy.dead && !enemy.escaped && Math.hypot(enemy.x - this.x, enemy.y - this.y) <= this.range);
         if (targets.length === 0) return;
 
         const target = targets[0];
+
+        this.attackFlash = 1;
+        if (scene?.spawnMuzzleFlash) {
+            scene.spawnMuzzleFlash(this.x, this.y, this.color, this.type === "bomb" ? 16 : 11);
+        }
+        if (this.type === "bomb" && scene?.addScreenShake) {
+            scene.addScreenShake(4.5, 0.1);
+        }
 
         if (this.type === "berserker" || this.type === "rogue") {
             this.performMeleeAttack(targets, scene);
@@ -304,6 +316,8 @@ export default class Tower {
             if (scene) {
                 scene.spawnDamageNumber(enemy.x - 10, enemy.y - 12, damage, color);
                 scene.spawnImpact(enemy.x, enemy.y, color, 12);
+                scene.spawnSlashBurst(enemy.x, enemy.y, color);
+                scene.addScreenShake(this.type === "berserker" ? 2.6 : 1.4, 0.07);
             }
 
             this.applyOnHitEffects(enemy, scene);
@@ -388,19 +402,30 @@ export default class Tower {
     }
 
     render(ctx) {
+        const pulse = Math.sin(this.idlePhase) * 0.35;
+        const radius = 11 + pulse + this.attackFlash * 1.4;
+
         ctx.save();
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 14 + this.attackFlash * 10;
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 11, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = "rgba(255,255,255,0.8)";
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = this.attackFlash > 0 ? "rgba(255,245,200,0.95)" : "rgba(255,255,255,0.8)";
         ctx.lineWidth = 2;
         ctx.stroke();
 
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.beginPath();
+        ctx.arc(this.x - 2, this.y - 3, Math.max(3.5, radius * 0.42), 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = "rgba(0,0,0,0.25)";
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, 5 + this.attackFlash * 0.6, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }

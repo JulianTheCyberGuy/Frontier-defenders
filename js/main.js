@@ -1,17 +1,16 @@
 import Game from "./engine/Game.js";
 import MainMenuScene from "./scenes/MainMenuScene.js";
 import SoundManager from "./engine/SoundManager.js";
-
-const DESIGN_WIDTH = 960;
-const DESIGN_HEIGHT = 540;
+import { DESIGN_HEIGHT, DESIGN_WIDTH } from "./config.js";
 
 const canvas = document.getElementById("gameCanvas");
 canvas.width = DESIGN_WIDTH;
 canvas.height = DESIGN_HEIGHT;
+canvas.style.touchAction = "none";
 
 function resizeCanvasDisplay() {
-    const viewportWidth = Math.max(window.innerWidth - 24, 320);
-    const viewportHeight = Math.max(window.innerHeight - 24, 240);
+    const viewportWidth = Math.max(window.innerWidth - 32, 320);
+    const viewportHeight = Math.max(window.innerHeight - 32, 240);
     const aspectRatio = DESIGN_WIDTH / DESIGN_HEIGHT;
 
     let displayWidth = viewportWidth;
@@ -22,8 +21,8 @@ function resizeCanvasDisplay() {
         displayWidth = displayHeight * aspectRatio;
     }
 
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
+    canvas.style.width = `${Math.floor(displayWidth)}px`;
+    canvas.style.height = `${Math.floor(displayHeight)}px`;
 }
 
 resizeCanvasDisplay();
