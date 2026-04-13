@@ -16,10 +16,16 @@ export default class Enemy {
 
         this.dead = false;
         this.escaped = false;
+
+        this.flashTimer = 0;
     }
 
     update(dt) {
         if (this.dead || this.escaped) return;
+
+        if (this.flashTimer > 0) {
+            this.flashTimer -= dt;
+        }
 
         if (this.i >= this.path.length - 1) {
             this.escaped = true;
@@ -41,20 +47,23 @@ export default class Enemy {
     }
 
     takeDamage(amount) {
-        if (this.dead) return;
+        if (this.dead) return false;
 
         this.hp -= amount;
+        this.flashTimer = 0.12;
 
         if (this.hp <= 0) {
             this.hp = 0;
             this.dead = true;
         }
+
+        return true;
     }
 
     render(ctx) {
         if (this.dead) return;
 
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = this.flashTimer > 0 ? "#ffffff" : this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();

@@ -87,6 +87,9 @@ export default class GameScene {
         this.hoveredId = null;
         this.currentLevelIndex = 0;
 
+        this.damageNumbers = [];
+        this.impactEffects = [];
+
         this.handleClick = this.handleClick.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
     }
@@ -111,6 +114,9 @@ export default class GameScene {
         this.enemies = [];
         this.towers = [];
         this.projectiles = [];
+
+        this.damageNumbers = [];
+        this.impactEffects = [];
 
         this.gold = 250;
         this.lives = 20;
@@ -145,6 +151,30 @@ export default class GameScene {
     spawnEnemy(role) {
         const stats = this.enemyTypes[role];
         this.enemies.push(new Enemy(this.path, stats));
+    }
+
+    spawnDamageNumber(x, y, value, color = "#ffffff") {
+        this.damageNumbers.push({
+            x,
+            y,
+            value,
+            color,
+            life: 0.6,
+            maxLife: 0.6,
+            vy: -28
+        });
+    }
+
+    spawnImpact(x, y, color = "#ffffff", maxRadius = 12) {
+        this.impactEffects.push({
+            x,
+            y,
+            color,
+            life: 0.18,
+            maxLife: 0.18,
+            radius: 4,
+            maxRadius
+        });
     }
 
     tryUpgradeTower(pathId) {
@@ -324,65 +354,89 @@ export default class GameScene {
     }
 
     update(dt) {
-        if (this.gameOver || this.victory) {
-            return;
-        }
+        if (!this.gameOver && !this.victory) {
+            this.waveTimer += dt;
+            this.spawnTimer -= dt;
 
-        this.waveTimer += dt;
-        this.spawnTimer -= dt;
-
-        if (this.pendingWave.length > 0 && this.spawnTimer <= 0) {
-            const nextRole = this.pendingWave.shift();
-            this.spawnEnemy(nextRole);
-            this.spawnTimer = this.spawnGap;
-        }
-
-        for (const enemy of this.enemies) {
-            enemy.update(dt);
-        }
-
-        for (const tower of this.towers) {
-            tower.update(dt, this.enemies, this.projectiles);
-        }
-
-        for (const projectile of this.projectiles) {
-            projectile.update(dt);
-        }
-
-        for (const enemy of this.enemies) {
-            if (enemy.dead) {
-                this.gold += enemy.reward;
+            if (this.pendingWave.length > 0 && this.spawnTimer <= 0) {
+                const nextRole = this.pendingWave.shift();
+                this.spawnEnemy(nextRole);
+                this.spawnTimer = this.spawnGap;
             }
 
-            if (enemy.escaped) {
-                this.lives -= 1;
+            for (const enemy of this.enemies) {
+                enemy.update(dt);
+            }
+
+            for (const tower of this.towers) {
+                tower.update(dt, this.enemies, this.projectiles, this);
+            }
+
+            for (const projectile of this.projectiles) {
+                projectile.update(dt);
+            }
+
+            for (const enemy of this.enemies) {
+                if (enemy.dead) {
+                    this.gold += enemy.reward;
+                }
+
+                if (enemy.escaped) {
+                    this.lives -= 1;
+                }
+            }
+
+            this.enemies = this.enemies.filter(enemy => !enemy.dead && !enemy.escaped);
+            this.projectiles = this.projectiles.filter(projectile => !projectile.dead);
+
+            if (this.lives <= 0) {
+                this.gameOver = true;
+                if (!this.endSoundPlayed) {
+                    this.soundManager.playDefeat();
+                    this.endSoundPlayed = true;
+                }
+            }
+
+            if (
+                this.pendingWave.length === 0 &&
+                this.enemies.length === 0 &&
+                !this.gameOver &&
+                !this.victory
+            ) {
+                this.waveIndex++;
+                this.startWave();
             }
         }
 
-        this.enemies = this.enemies.filter(enemy => !enemy.dead && !enemy.escaped);
-        this.projectiles = this.projectiles.filter(projectile => !projectile.dead);
+        this.updateDamageNumbers(dt);
+        this.updateImpactEffects(dt);
+    }
 
-        if (this.lives <= 0) {
-            this.gameOver = true;
-            if (!this.endSoundPlayed) {
-                this.soundManager.playDefeat();
-                this.endSoundPlayed = true;
-            }
+    updateDamageNumbers(dt) {
+        for (const number of this.damageNumbers) {
+            number.life -= dt;
+            number.y += number.vy * dt;
         }
 
-        if (
-            this.pendingWave.length === 0 &&
-            this.enemies.length === 0 &&
-            !this.gameOver &&
-            !this.victory
-        ) {
-            this.waveIndex++;
-            this.startWave();
+        this.damageNumbers = this.damageNumbers.filter(number => number.life > 0);
+    }
+
+    updateImpactEffects(dt) {
+        for (const effect of this.impactEffects) {
+            effect.life -= dt;
+            const progress = 1 - effect.life / effect.maxLife;
+            effect.radius = 4 + (effect.maxRadius - 4) * progress;
         }
+
+        this.impactEffects = this.impactEffects.filter(effect => effect.life > 0);
     }
 
     render(ctx) {
         this.drawPath(ctx);
+
+        for (const impact of this.impactEffects) {
+            this.drawImpactEffect(ctx, impact);
+        }
 
         for (const tower of this.towers) {
             tower.render(ctx);
@@ -394,6 +448,10 @@ export default class GameScene {
 
         for (const enemy of this.enemies) {
             enemy.render(ctx);
+        }
+
+        for (const number of this.damageNumbers) {
+            this.drawDamageNumber(ctx, number);
         }
 
         this.drawTopBar(ctx);
@@ -420,6 +478,30 @@ export default class GameScene {
         }
 
         ctx.stroke();
+    }
+
+    drawImpactEffect(ctx, effect) {
+        const alpha = effect.life / effect.maxLife;
+
+        ctx.save();
+        ctx.strokeStyle = effect.color;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    drawDamageNumber(ctx, number) {
+        const alpha = number.life / number.maxLife;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = number.color;
+        ctx.font = "bold 16px Arial";
+        ctx.fillText(`-${number.value}`, number.x, number.y);
+        ctx.restore();
     }
 
     drawTopBar(ctx) {

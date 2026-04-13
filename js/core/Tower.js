@@ -22,14 +22,20 @@ export default class Tower {
                 rate: 1.0,
                 damage: 20,
                 color: "green",
-                name: "Archer"
+                name: "Archer",
+                projectileColor: "#f3e37c",
+                projectileRadius: 4,
+                projectileSpeed: 340
             },
             bomb: {
                 range: 130,
                 rate: 0.6,
                 damage: 25,
                 color: "orange",
-                name: "Bomb"
+                name: "Bomb",
+                projectileColor: "#ff9f1c",
+                projectileRadius: 6,
+                projectileSpeed: 260
             },
             berserker: {
                 range: 50,
@@ -50,7 +56,10 @@ export default class Tower {
                 rate: 0.8,
                 damage: 30,
                 color: "blue",
-                name: "Mage"
+                name: "Mage",
+                projectileColor: "#6cb6ff",
+                projectileRadius: 5,
+                projectileSpeed: 300
             }
         };
 
@@ -264,7 +273,7 @@ export default class Tower {
         this.range += 20;
     }
 
-    update(dt, enemies, projectiles) {
+    update(dt, enemies, projectiles, gameScene = null) {
         this.cool -= dt;
 
         let target = null;
@@ -289,10 +298,19 @@ export default class Tower {
 
                 const distance = Math.hypot(enemy.x - this.x, enemy.y - this.y);
                 if (distance < this.range) {
-                    enemy.takeDamage(this.damage);
+                    const didDamage = enemy.takeDamage(this.damage);
+
+                    if (didDamage && gameScene) {
+                        gameScene.spawnDamageNumber(enemy.x, enemy.y - 4, this.damage, "#ffffff");
+                        gameScene.spawnImpact(enemy.x, enemy.y, this.type === "rogue" ? "#a970ff" : "#ff8e72", 10);
+                    }
 
                     if (this.type === "rogue" && this.poisonDamage) {
-                        enemy.takeDamage(this.poisonDamage);
+                        const didPoison = enemy.takeDamage(this.poisonDamage);
+
+                        if (didPoison && gameScene) {
+                            gameScene.spawnDamageNumber(enemy.x + 8, enemy.y - 12, this.poisonDamage, "#7ee787");
+                        }
                     }
                 }
             }
@@ -304,8 +322,16 @@ export default class Tower {
 
                 const distance = Math.hypot(enemy.x - target.x, enemy.y - target.y);
                 if (distance < splash) {
-                    enemy.takeDamage(this.damage);
+                    const didDamage = enemy.takeDamage(this.damage);
+
+                    if (didDamage && gameScene) {
+                        gameScene.spawnDamageNumber(enemy.x, enemy.y - 6, this.damage, "#ffd580");
+                    }
                 }
+            }
+
+            if (gameScene) {
+                gameScene.spawnImpact(target.x, target.y, "#ff9f1c", splash * 0.45);
             }
         } else if (this.type === "mage") {
             this.charge++;
@@ -317,16 +343,47 @@ export default class Tower {
 
                     const distance = Math.hypot(enemy.x - this.x, enemy.y - this.y);
                     if (distance < this.range) {
-                        enemy.takeDamage(40 + this.level * 10);
+                        const meteorDamage = 40 + this.level * 10;
+                        const didDamage = enemy.takeDamage(meteorDamage);
+
+                        if (didDamage && gameScene) {
+                            gameScene.spawnDamageNumber(enemy.x, enemy.y - 8, meteorDamage, "#7dcfff");
+                        }
                     }
+                }
+
+                if (gameScene) {
+                    gameScene.spawnImpact(target.x, target.y, "#6cb6ff", 34);
                 }
 
                 this.charge = 0;
             } else {
-                projectiles.push(new Projectile(this.x, this.y, target, this.damage));
+                projectiles.push(
+                    new Projectile(this.x, this.y, target, this.damage, {
+                        speed: this.projectileSpeed,
+                        radius: this.projectileRadius,
+                        color: this.projectileColor,
+                        onHit: ({ x, y, damage, color }) => {
+                            if (!gameScene) return;
+                            gameScene.spawnDamageNumber(x, y - 6, damage, "#9cdcfe");
+                            gameScene.spawnImpact(x, y, color, 10);
+                        }
+                    })
+                );
             }
         } else {
-            projectiles.push(new Projectile(this.x, this.y, target, this.damage));
+            projectiles.push(
+                new Projectile(this.x, this.y, target, this.damage, {
+                    speed: this.projectileSpeed,
+                    radius: this.projectileRadius,
+                    color: this.projectileColor,
+                    onHit: ({ x, y, damage, color }) => {
+                        if (!gameScene) return;
+                        gameScene.spawnDamageNumber(x, y - 6, damage, "#fff6a5");
+                        gameScene.spawnImpact(x, y, color, 9);
+                    }
+                })
+            );
         }
 
         this.cool = 1 / this.rate;
